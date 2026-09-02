@@ -18,11 +18,13 @@ HID로 기기와 통신해 키에 정보를 그리고 입력을 받는다.
 | --- | --- |
 | 기기 식별 (VID/PID, HID 속성) | 확인 |
 | Python `hidapi`로 sudo 없이 open | 확인 |
-| 명령 프레임 규격 | 미구현 |
-| 키 이미지 전송 | 미구현 |
-| 키 입력 수신 | 미구현 |
-| 키 렌더링 | 설계 확정, 이식 예정 |
-| 데이터 수집 | 설계 확정, 이식 예정 |
+| 명령 프레임 규격 | 확인 |
+| 키 이미지 전송 | 확인 |
+| 키 입력 수신 | 확인 (본체 15키) |
+| 키 렌더링 | 12종 구현 |
+| 데이터 수집 | 8종 구현 |
+| 데몬 루프 | 구현 |
+| 조작 화면 | 미구현 |
 
 ## 요구 사항
 
@@ -35,9 +37,10 @@ macOS가 키보드나 마우스에 거는 제약을 받지 않는다.
 
 ## 설치
 
+uv 로 관리한다.
+
 ```bash
-uv venv --python 3.11 .venv
-uv pip install --python .venv/bin/python -e .
+uv sync
 ```
 
 ## 실행
@@ -46,8 +49,46 @@ uv pip install --python .venv/bin/python -e .
 
 ```bash
 osascript -e 'tell application "StreamDock" to quit'
-.venv/bin/python -m mirabox.daemon
+uv run mirabox
 ```
+
+기기 없이 렌더링만 확인하려면 이렇게 한다. 실제 크기와 4배 확대를
+`/tmp/mirabox-keys` 에 떨군다.
+
+```bash
+uv run mirabox-preview
+```
+
+기기 통신만 확인하려면 이렇게 한다.
+
+```bash
+uv run mirabox-probe
+```
+
+Ctrl-C 로 끝낸다. **강제 종료하면 기기가 잠긴다.** HID 핸들을 쥔 채로
+죽으면 이후 어떤 프로그램도 열지 못하고 USB 를 다시 꽂아야 한다.
+
+## 키 종류
+
+설정은 `~/.config/mirabox/config.json` 이다. 첫 실행 때 만들어진다.
+
+| 키 | 내용 | 출처 |
+| --- | --- | --- |
+| `five` | 계정 5시간 한도 사용률 | statusLine 스냅샷 |
+| `seven` | 계정 7일 한도 사용률 | statusLine 스냅샷 |
+| `ctx` | 최근 세션 컨텍스트 사용률 | statusLine 스냅샷 |
+| `cost` | 최근 세션 누적 비용 | statusLine 스냅샷 |
+| `cache` | 프롬프트 캐시 적중률 | statusLine 스냅샷 |
+| `today` | 오늘 누적 토큰 | 로컬 jsonl |
+| `burn` | 현재 블록 분당 토큰 | 로컬 jsonl |
+| `mail` | 안 읽은 메일 | `gws` |
+| `cal` | 다음 일정까지 | `gws` |
+| `jira` | 오늘 Jira 기록 수 | `jira` CLI |
+| `mr` | 리뷰 대기 MR | GitLab REST |
+| `build` | 빌드 서버 부하 | ssh |
+
+보드에 올린 키에 필요한 수집만 켠다. `mail` 을 안 쓰면 Gmail 을 아예
+호출하지 않는다.
 
 ## 기기 정보
 

@@ -29,6 +29,7 @@ macOS 26.5라 호환성 문제로 보인다.
 | 펌웨어 문자열 | `V2.293S.00.003` |
 | 키 배열 | 6 x 3 = 18 |
 | 키 이미지 | 85x85 JPEG, 90도 회전. 우측 열 3개는 80x80 |
+| 치수 기준 | 126 기준 설계의 0.675 배. 상단 20px, 주 수치 31px, 띠 8px |
 | 키 매핑 | 좌상단부터 행 우선 0..17. 실기기 확인 완료 |
 | 입력 보고 | `ACK\0\0OK\0\0` + 바이트 9 에 기기 키 ID. 뗄 때만 온다 |
 
@@ -97,12 +98,13 @@ Claude Code 2.1.80부터다.
 
 기기 없이 되는 것과 기기가 있어야 하는 것을 구분한다.
 
-```bash
-# 렌더링은 기기 없이 검증한다. PNG로 떨궈서 눈으로 본다
-.venv/bin/python -m mirabox.render --preview /tmp/keys
+파이썬 환경은 uv 로 관리한다. `pip` 를 직접 쓰지 않는다.
 
-# 기기 통신은 실물이 필요하다. 벤더 앱을 먼저 끈다
-.venv/bin/python -m mirabox.device --probe
+```bash
+uv sync                 # 의존성 설치
+uv run mirabox-preview  # 렌더링만 확인 (기기 불필요)
+uv run mirabox-probe    # 기기 통신 확인 (벤더 앱을 먼저 끈다)
+uv run mirabox          # 데몬
 ```
 
 렌더링 결과는 **반드시 눈으로 확인한다.** 좌표 계산만 믿으면 안 된다.
