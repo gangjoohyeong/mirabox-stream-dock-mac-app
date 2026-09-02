@@ -66,6 +66,12 @@ class KeyEvent:
     pressed: bool
 
 
+# 매핑에 없는 입력 보고를 남겨 둔다. 사이드 3키(0x10~0x12)가 실제로 무엇을
+# 보내는지 아직 확인하지 못했다. 눌러 본 뒤 이 목록을 보면 알 수 있다.
+UNKNOWN_REPORTS: list[bytes] = []
+UNKNOWN_CAP = 40
+
+
 def key_size(key: int) -> tuple[int, int]:
     """이 키가 받는 이미지 크기."""
     return SIDE_SIZE if KEY_IDS[key] in SIDE_KEY_IDS else KEY_SIZE
@@ -194,17 +200,23 @@ class StreamDock293S:
     # ---------- 입력 ----------
 
     def read_events(self, timeout_ms: int = 0) -> list[KeyEvent]:
-        """기기는 뗄 때만 보고하므로 누름과 뗌을 한 쌍으로 만들어 돌려준다."""
+        """입력 보고는 ACK\0\0OK\0 뒤에 기기 키 ID 와 상태가 붙는다.
+
+        기기는 뗄 때만 보고하므로 누름과 뗌을 한 쌍으로 만들어 돌려준다.
+        """
         events: list[KeyEvent] = []
         while True:
             data = self._require().read(PACKET, timeout_ms=timeout_ms)
             if not data:
                 return events
             timeout_ms = 1          # 첫 패킷 이후로는 사실상 대기하지 않는다
-            if bytes(data[:3]) != b"ACK" or len(data) < 10:
+            if bytes(data[:3]) != b"ACK" or len(data) < 11:
                 continue
-            key = DEVICE_ID_TO_KEY.get(data[9])
+            device_id, _state = data[9], data[10]
+            key = DEVICE_ID_TO_KEY.get(device_id)
             if key is None:
+                if len(UNKNOWN_REPORTS) < UNKNOWN_CAP:
+                    UNKNOWN_REPORTS.append(bytes(data[:16]))
                 continue
             events.append(KeyEvent(key, True))
             events.append(KeyEvent(key, False))

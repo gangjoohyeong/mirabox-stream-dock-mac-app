@@ -70,9 +70,15 @@ src/mirabox/
     atlassian.py  Jira
     gitlab.py     리뷰 대기 MR
     buildhost.py  빌드 서버
+    actions.py    키를 눌렀을 때 할 일
+    appwatch.py   앞선 앱 감시 (NSWorkspace)
+    agent.py      로그인 자동 시작 (launchd)
   ui/
     app.py        조작 화면. 데몬을 워커 스레드로 품는다
 ```
+
+설정은 프로필 단위다. 칸 하나가 표시할 키(key), 그 키의 개별 설정(options),
+누를 때 할 일(action)을 함께 가진다.
 
 조작 화면과 데몬은 한 프로세스다. 기기는 한 프로세스만 점유할 수 있어서
 따로 두면 IPC 와 경합이 생긴다.
@@ -154,6 +160,15 @@ uv run mirabox          # 화면 없이 데몬만
 쓸 수 없다. `awk '{print $5}'` 대신 `cut -d" " -f5`를 쓴다.
 
 **Pillow 좌표는 정수로 넘긴다.** 자간 때문에 소수가 섞이면 조용히 어긋난다.
+
+**한글은 대체 글꼴이 필요하다.** Helvetica Neue Condensed 에 한글 글리프가
+없어서 그냥 두면 두부가 된다. 글자에 비 ASCII 가 섞이면 Apple SD Gothic Neo
+로 바꾼다. 그 글꼴은 세로로 커서 주 수치는 0.82 배로 줄여야 아래 띠와
+겹치지 않는다.
+
+**AppleScript 는 osacompile 로 문법을 검사한다.** min 과 max 연산자가 없고,
+앱 참조를 변수로 두면 두 단어 명령이 컴파일 시점에 해석되지 않는다.
+`osacompile -o /tmp/x.scpt -e '<스크립트>'` 로 확인한다.
 
 **블로킹 모드에서 `read(timeout_ms=0)` 은 즉시 반환이 아니라 무한 대기다.**
 항상 1 이상을 넘긴다. 이걸로 한 번 멈췄다.
