@@ -54,10 +54,14 @@ Input Monitoring 권한도 필요 없다.
 ### 내려받아 쓰기
 
 [Releases](https://github.com/gangjoohyeong/mirabox-stream-dock-mac-app/releases)
-에서 `.app` 을 받아 `/Applications` 에 넣는다.
+에서 zip 을 받아 풀고 `Stream Dock.app` 을 `/Applications` 에 넣는다.
 
-서명하지 않으므로 처음 열 때 Gatekeeper 가 막는다. Finder 에서 우클릭 후 열기를
-한 번 해 주면 이후로는 그냥 열린다.
+서명도 공증도 하지 않았다. 인터넷에서 받은 앱에는 격리 딱지가 붙어서 그냥 열면
+"손상되었다" 는 말이 나온다. 딱지를 떼고 연다.
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Stream Dock.app"
+```
 
 ### 소스에서 빌드
 
@@ -66,7 +70,8 @@ npm install
 npm run dist
 ```
 
-`dist/mac-arm64/Stream Dock.app` 이 나온다. `node-hid` 와 `@napi-rs/canvas` 는
+`dist/mac-arm64/Stream Dock.app` 이 나온다. 직접 빌드한 것에는 격리 딱지가
+붙지 않으므로 그대로 열린다. 배포용 zip 까지 만들려면 `npm run release` 를 쓴다. `node-hid` 와 `@napi-rs/canvas` 는
 네이티브 모듈이라, npm 이 설치 스크립트를 막으면
 `npm rebuild --foreground-scripts` 로 한 번 더 돌린다.
 

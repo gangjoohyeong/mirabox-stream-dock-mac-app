@@ -12,7 +12,8 @@
     "start": "electron-vite preview",
     "dist": "npm run build && npm run icon && electron-builder --mac --dir",
     "typecheck": "tsc --noEmit",
-    "icon": "node tools/icon.mjs"
+    "icon": "node tools/icon.mjs",
+    "release": "npm run build && npm run icon && electron-builder --mac --publish never"
   },
   "devDependencies": {
     "@types/node": "22.19.1",

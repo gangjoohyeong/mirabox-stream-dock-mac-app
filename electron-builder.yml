@@ -20,7 +20,10 @@ asarUnpack:
 mac:
   category: public.app-category.utilities
   target:
+    # dir 은 개발 중 바로 실행해 보기 위한 것이고, zip 이 릴리즈에 올릴 물건이다
     - target: dir
+      arch: arm64
+    - target: zip
       arch: arm64
   # 서명 없이 로컬에서 쓴다. 배포하려면 여기에 identity 를 넣는다.
   identity: null
