@@ -182,6 +182,35 @@ export class StreamDock {
     }
   }
 
+  /**
+   * 비동기 입력 수신을 시작한다.
+   *
+   * readTimeout 은 동기라 메인 프로세스를 그만큼 막는다. node-hid 의 data
+   * 이벤트는 별도 스레드에서 읽으므로 UI 가 멈추지 않는다. 대신 같은 핸들에
+   * 두 방식을 섞어 쓰면 안 된다.
+   */
+  startReading(onEvent: (event: KeyEvent) => void, onError: (error: Error) => void): void {
+    const hid = this.require()
+    hid.on('data', (data: Buffer) => {
+      for (const event of this.parseReport(data)) onEvent(event)
+    })
+    hid.on('error', onError)
+  }
+
+  /** 한 보고를 누름과 뗌 한 쌍으로 바꾼다. 기기는 뗄 때만 보고한다. */
+  private parseReport(data: Buffer): KeyEvent[] {
+    if (data.length < 11) return []
+    if (data[0] !== 0x41 || data[1] !== 0x43 || data[2] !== 0x4b) return [] // "ACK"
+    const key = DEVICE_ID_TO_KEY.get(data[9])
+    if (key === undefined) {
+      if (unknownReports.length < UNKNOWN_CAP) {
+        unknownReports.push(data.subarray(0, 16).toString('hex'))
+      }
+      return []
+    }
+    return [{ key, pressed: true }, { key, pressed: false }]
+  }
+
   /** 묵은 입력 보고를 버린다. */
   drain(): void {
     const hid = this.require()

@@ -15,7 +15,7 @@
  * 판독 기준은 화면이 아니라 실물이다. 책상 거리에서 읽히지 않으면 실패다.
  */
 
-import { createCanvas, type SKRSContext2D } from '@napi-rs/canvas'
+import { createCanvas, type Canvas, type SKRSContext2D } from '@napi-rs/canvas'
 import { KEY_SIZE, keySize } from './device.js'
 
 // tokens.css 의 다크 값과 같다
@@ -103,11 +103,11 @@ export interface Card {
 }
 
 /** 카드 한 장을 그려 PNG 가 아닌 캔버스로 돌려준다. 인코딩은 encodeKey 가 한다. */
-export function card(key: number, spec: Card) {
+export function card(key: number, spec: Card): Canvas {
   const size = keySize(key)
   const scale = size / KEY_SIZE // 사이드 키는 조금 작다
   const pad = Math.round(PAD * scale)
-  const canvas = createCanvas(size, size)
+  const canvas = createCanvas(size, size) as Canvas
   const ctx = canvas.getContext('2d')
 
   ctx.fillStyle = BG
@@ -162,13 +162,13 @@ export function card(key: number, spec: Card) {
 }
 
 /** 값이 아직 없는 키. 자리는 지키되 비어 있음을 알린다. */
-export const blank = (key: number, label = '', note = '--') =>
+export const blank = (key: number, label = '', note = '--'): Canvas =>
   card(key, { label, value: note, valueColor: TERTIARY })
 
 /** 아무것도 배치하지 않은 칸. 기기에서는 그냥 꺼진 것처럼 보여야 한다. */
-export function empty(key: number) {
+export function empty(key: number): Canvas {
   const size = keySize(key)
-  const canvas = createCanvas(size, size)
+  const canvas = createCanvas(size, size) as Canvas
   const ctx = canvas.getContext('2d')
   ctx.fillStyle = BG
   ctx.fillRect(0, 0, size, size)
@@ -180,7 +180,7 @@ export function limitCard(
   key: number, label: string,
   window: { pct: number; remainMin: number | null } | null | undefined,
   ageMs: number, staleMs = 30 * 60_000,
-) {
+): Canvas {
   if (!window) return blank(key, label)
   const stale = ageMs > staleMs
   const color = stale ? TERTIARY : toneUp(window.pct)
@@ -195,8 +195,6 @@ export function limitCard(
   })
 }
 
-type Canvas = ReturnType<typeof createCanvas>
-
 /**
  * 기기로 보낼 JPEG 바이트.
  *
@@ -206,7 +204,7 @@ type Canvas = ReturnType<typeof createCanvas>
  */
 export function encodeKey(source: Canvas, quality = 90): Buffer {
   const size = source.width
-  const out = createCanvas(size, size)
+  const out = createCanvas(size, size) as Canvas
   const ctx = out.getContext('2d')
   ctx.translate(0, size)
   ctx.rotate(-Math.PI / 2)

@@ -1,0 +1,73 @@
+/** 메인과 렌더러가 함께 쓰는 타입. 여기에는 로직을 두지 않는다. */
+
+export const ACTION_KINDS = ['none', 'app', 'url', 'shell', 'media'] as const
+export type ActionKind = (typeof ACTION_KINDS)[number]
+
+export interface Action {
+  kind: ActionKind
+  value: string
+}
+
+export interface Slot {
+  key: string | null
+  options: Record<string, string>
+  action: Action
+}
+
+export interface Profile {
+  name: string
+  slots: Slot[]
+  /** 이 앱이 앞으로 나오면 자동 전환한다. 빈 값이면 수동 전환만. */
+  app: string
+}
+
+export interface Config {
+  profiles: Profile[]
+  active: string
+  brightness: number
+  refreshSeconds: number
+}
+
+/** 조작 화면이 입력란을 만들 때 쓰는 키별 개별 설정 정의 */
+export interface KeyOption {
+  name: string
+  label: string
+  kind: 'text' | 'file'
+  placeholder: string
+}
+
+export interface KeyInfo {
+  name: string
+  label: string
+  summary: string
+  sources: string[]
+  options: KeyOption[]
+}
+
+export interface SourceStatus {
+  name: string
+  ok: boolean
+  error: string | null
+  updatedAt: number | null
+}
+
+export interface DeviceStatus {
+  connected: boolean
+  message: string
+}
+
+/** 렌더러가 보드를 그리는 데 필요한 한 판의 상태 */
+export interface Snapshot {
+  config: Config
+  device: DeviceStatus
+  sources: SourceStatus[]
+  /** 칸별 미리보기. data:image/png;base64 */
+  tiles: string[]
+  runAtLogin: boolean
+  runningApps: string[]
+}
+
+export interface MediaChoice {
+  value: string
+  label: string
+}
