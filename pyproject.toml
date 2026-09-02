@@ -7,6 +7,7 @@ requires-python = ">=3.11"
 dependencies = [
     "hidapi==0.15.0",
     "pillow==12.3.0",
+    "pyobjc-framework-cocoa>=12.2.2",
     "pyside6==6.11.2",
 ]
 
@@ -15,6 +16,7 @@ mirabox = "mirabox.core.daemon:main"
 mirabox-app = "mirabox.ui.app:main"
 mirabox-probe = "mirabox.core.device:probe"
 mirabox-preview = "mirabox.core.preview:main"
+mirabox-agent = "mirabox.core.agent:main"
 
 [build-system]
 requires = ["hatchling"]

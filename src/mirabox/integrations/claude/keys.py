@@ -45,21 +45,21 @@ def _raw(state, field: str) -> dict:
 
 
 @key("five", "5H", "계정 5시간 한도 사용률", sources=(SNAPSHOT,))
-def _five(index, state):
+def _five(index, state, options):
     snap = state.get(SNAPSHOT) or {}
     return limit_card(index, "5H", snap.get("five_hour"),
                       snap.get("age_ms", float("inf")))
 
 
 @key("seven", "7D", "계정 7일 한도 사용률", sources=(SNAPSHOT,))
-def _seven(index, state):
+def _seven(index, state, options):
     snap = state.get(SNAPSHOT) or {}
     return limit_card(index, "7D", snap.get("seven_day"),
                       snap.get("age_ms", float("inf")))
 
 
 @key("ctx", "CTX", "최근 활동 세션의 컨텍스트 사용률", sources=(SNAPSHOT,))
-def _ctx(index, state):
+def _ctx(index, state, options):
     window = _raw(state, "context_window")
     pct = window.get("used_percentage")
     if pct is None:
@@ -71,7 +71,7 @@ def _ctx(index, state):
 
 
 @key("cost", "COST", "최근 활동 세션의 누적 비용", sources=(SNAPSHOT,))
-def _cost(index, state):
+def _cost(index, state, options):
     cost = _raw(state, "cost")
     usd = cost.get("total_cost_usd")
     if usd is None:
@@ -82,7 +82,7 @@ def _cost(index, state):
 
 
 @key("cache", "CACHE", "프롬프트 캐시 적중률", sources=(SNAPSHOT,))
-def _cache(index, state):
+def _cache(index, state, options):
     cache = _raw(state, "prompt_cache")
     ratio = cache.get("hit_ratio")
     if ratio is None:
@@ -93,7 +93,7 @@ def _cache(index, state):
 
 
 @key("today", "TODAY", "오늘 누적 토큰", sources=(USAGE,))
-def _today(index, state):
+def _today(index, state, options):
     today = (state.get(USAGE) or {}).get("today")
     if not today:
         return blank(index, "TODAY")
@@ -102,7 +102,7 @@ def _today(index, state):
 
 
 @key("burn", "BURN", "현재 블록의 분당 토큰 소모", sources=(USAGE,))
-def _burn(index, state):
+def _burn(index, state, options):
     block = (state.get(USAGE) or {}).get("block")
     if not block or not block["elapsed_min"]:
         return blank(index, "BURN")

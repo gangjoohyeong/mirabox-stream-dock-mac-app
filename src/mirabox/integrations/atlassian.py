@@ -18,7 +18,7 @@ def _fetch_today():
 
 
 @key("jira", "JIRA", "오늘 Jira 에 기록한 항목 수", sources=(JIRA_TODAY,))
-def _jira(index, state):
+def _jira(index, state, options):
     value = state.get(JIRA_TODAY)
     if not value:
         return blank(index, "JIRA")

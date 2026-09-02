@@ -18,7 +18,7 @@ from PIL import Image
 from .state import State
 
 FetchFn = Callable[[], Any]
-RenderFn = Callable[[int, State], Image.Image]
+RenderFn = Callable[[int, State, dict], Image.Image]
 
 
 @dataclass(frozen=True)
@@ -29,12 +29,22 @@ class Source:
 
 
 @dataclass(frozen=True)
+class Option:
+    """키마다 다른 개별 설정. 조작 화면이 이걸 보고 입력란을 만든다."""
+    name: str
+    label: str
+    kind: str = "text"        # text 또는 file
+    placeholder: str = ""
+
+
+@dataclass(frozen=True)
 class Key:
     name: str
     label: str            # 키에 찍히는 짧은 이름
     summary: str          # 조작 화면에 보여줄 한 줄 설명
     render: RenderFn
     sources: frozenset[str]
+    options: tuple[Option, ...] = ()
 
 
 SOURCES: dict[str, Source] = {}
@@ -50,9 +60,10 @@ def source(name: str, every: float) -> Callable[[FetchFn], FetchFn]:
 
 
 def key(name: str, label: str, summary: str,
-        sources: tuple[str, ...] = ()) -> Callable[[RenderFn], RenderFn]:
+        sources: tuple[str, ...] = (),
+        options: tuple[Option, ...] = ()) -> Callable[[RenderFn], RenderFn]:
     def register(fn: RenderFn) -> RenderFn:
-        KEYS[name] = Key(name, label, summary, fn, frozenset(sources))
+        KEYS[name] = Key(name, label, summary, fn, frozenset(sources), options)
         return fn
     return register
 

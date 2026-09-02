@@ -4,6 +4,6 @@
 아래에 한 줄 추가하면 된다.
 """
 
-from . import atlassian, buildhost, claude, gitlab, google  # noqa: F401
+from . import atlassian, basic, buildhost, claude, gitlab, google  # noqa: F401
 
-__all__ = ["atlassian", "buildhost", "claude", "gitlab", "google"]
+__all__ = ["atlassian", "basic", "buildhost", "claude", "gitlab", "google"]

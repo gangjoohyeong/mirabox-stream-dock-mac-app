@@ -30,7 +30,7 @@ def _fetch_mrs():
 
 
 @key("mr", "MR", "내 리뷰를 기다리는 MR 수", sources=(REVIEW_MRS,))
-def _mr(index, state):
+def _mr(index, state, options):
     value = state.get(REVIEW_MRS)
     if not value:
         return blank(index, "MR")

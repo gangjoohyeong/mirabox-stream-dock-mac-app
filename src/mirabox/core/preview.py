@@ -11,7 +11,6 @@ import os
 from PIL import Image
 
 from .. import integrations  # noqa: F401  소스와 키를 등록시킨다
-from .daemon import Collector
 from .device import KEY_SIZE
 from .registry import KEYS, SOURCES
 from .state import State
@@ -34,7 +33,7 @@ def main(out_dir: str = OUT_DIR) -> None:
 
     tiles = []
     for index, (name, entry) in enumerate(KEYS.items()):
-        image = entry.render(index, state)
+        image = entry.render(index, state, {})
         image.save(os.path.join(out_dir, f"{name}.png"))
         tiles.append(image)
 

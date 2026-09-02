@@ -26,7 +26,7 @@ def _fetch_build():
 
 
 @key("build", "BUILD", "빌드 서버 부하와 디스크", sources=(BUILD,))
-def _build(index, state):
+def _build(index, state, options):
     value = state.get(BUILD)
     if not value:
         return blank(index, "BUILD")

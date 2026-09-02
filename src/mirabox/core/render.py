@@ -24,6 +24,11 @@ from .device import KEY_SIZE, key_size
 FONT_PATH = "/System/Library/Fonts/Supplemental/HelveticaNeue.ttc"
 CONDENSED_BOLD = 4
 
+# 한글 글리프가 없어서 그냥 두면 두부가 된다. 사용자가 직접 넣는 글자에만
+# 쓰이고, 데이터 키는 숫자와 영문이라 계속 좁은 글꼴을 쓴다.
+CJK_FONT_PATH = "/System/Library/Fonts/AppleSDGothicNeo.ttc"
+CJK_BOLD = 6
+
 BG = (16, 19, 24)
 INK = (255, 255, 255)
 MUTED = (154, 163, 175)
@@ -43,13 +48,21 @@ TOP_SIZE = 23
 VALUE_SIZE = 35
 SMALL_SIZE = 17
 
-_fonts: dict[int, ImageFont.FreeTypeFont] = {}
+_fonts: dict[tuple[int, bool], ImageFont.FreeTypeFont] = {}
 
 
-def font(size: int) -> ImageFont.FreeTypeFont:
-    if size not in _fonts:
-        _fonts[size] = ImageFont.truetype(FONT_PATH, size, index=CONDENSED_BOLD)
-    return _fonts[size]
+def _is_ascii(text: str) -> bool:
+    return all(ord(ch) < 0x80 for ch in text)
+
+
+def font(size: int, text: str | None = None) -> ImageFont.FreeTypeFont:
+    """글자에 한글 같은 게 섞이면 그것을 그릴 수 있는 글꼴로 바꾼다."""
+    cjk = text is not None and not _is_ascii(text)
+    token = (size, cjk)
+    if token not in _fonts:
+        path, index = (CJK_FONT_PATH, CJK_BOLD) if cjk else (FONT_PATH, CONDENSED_BOLD)
+        _fonts[token] = ImageFont.truetype(path, size, index=index)
+    return _fonts[token]
 
 
 # ---------- 값 표기 ----------
@@ -90,7 +103,7 @@ def tone_down(pct: float):
 # ---------- 골격 ----------
 
 def _width(draw: ImageDraw.ImageDraw, text: str, size: int) -> int:
-    x0, _, x1, _ = draw.textbbox((0, 0), text, font=font(size))
+    x0, _, x1, _ = draw.textbbox((0, 0), text, font=font(size, text))
     return x1 - x0
 
 
@@ -108,22 +121,23 @@ def card(key: int, *, label: str, value: str,
 
     top_size = max(10, round(TOP_SIZE * scale))
     baseline = round(TOP_BASELINE * scale)
-    d.text((px, baseline), label, font=font(top_size), fill=MUTED, anchor="ls")
+    d.text((px, baseline), label, font=font(top_size, label), fill=MUTED, anchor="ls")
 
     # 라벨이 길면 보조값과 겹친다. 폭을 재서 줄이고, 그래도 안 되면 버린다.
     if right:
         avail = w - 2 * px - _width(d, label, top_size) - round(5 * scale)
         for size in (top_size, max(9, round(SMALL_SIZE * scale))):
             if _width(d, right, size) <= avail:
-                d.text((w - px, baseline), right, font=font(size),
+                d.text((w - px, baseline), right, font=font(size, right),
                        fill=right_color, anchor="rs")
                 break
 
-    # 주 수치가 폭을 넘으면 한 단계씩 줄인다
-    value_size = round(VALUE_SIZE * scale)
+    # 주 수치가 폭을 넘으면 한 단계씩 줄인다.
+    # 한글 글꼴은 라틴보다 세로로 커서 그대로 두면 아래 띠와 겹친다.
+    value_size = round(VALUE_SIZE * scale * (1.0 if _is_ascii(value) else 0.82))
     while value_size > 12 and _width(d, value, value_size) > w - 2 * px:
         value_size -= 1
-    d.text((px, round(VALUE_BASELINE * scale)), value, font=font(value_size),
+    d.text((px, round(VALUE_BASELINE * scale)), value, font=font(value_size, value),
            fill=value_color, anchor="ls")
 
     by, bh = round(BAND_Y * scale), max(4, round(BAND_H * scale))

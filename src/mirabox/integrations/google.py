@@ -55,7 +55,7 @@ def _fetch_calendar():
 
 
 @key("mail", "MAIL", "안 읽은 메일 수", sources=(MAIL,))
-def _mail(index, state):
+def _mail(index, state, options):
     value = state.get(MAIL)
     if not value:
         return blank(index, "MAIL")
@@ -66,7 +66,7 @@ def _mail(index, state):
 
 
 @key("cal", "CAL", "다음 일정까지 남은 시간", sources=(CALENDAR,))
-def _cal(index, state):
+def _cal(index, state, options):
     value = state.get(CALENDAR)
     if not value:
         return blank(index, "CAL")

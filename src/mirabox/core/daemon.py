@@ -1,7 +1,7 @@
 """데몬 루프.
 
-등록된 소스 중 보드에 올라온 키가 요구하는 것만 켠다. 주기적으로 키를 그려
-기기에 보내고, 키 입력을 받아 설정된 동작을 실행한다.
+활성 프로필의 칸을 그려 기기에 보내고, 키 입력을 받아 설정된 동작을
+실행한다. 앞으로 나온 앱에 묶인 프로필이 있으면 그쪽으로 바꾼다.
 
 기기가 USB 에서 빠졌다 들어오는 일이 잦다. 벤더 앱은 그때 죽지만 여기서는
 다시 붙는다. 종료할 때는 반드시 close() 를 태운다. HID 핸들을 쥔 채로
@@ -16,9 +16,10 @@ import threading
 import time
 
 from .. import integrations  # noqa: F401  소스와 키를 등록시킨다
-from . import config as config_module
 from . import actions as actions_module
+from . import config as config_module
 from . import shell
+from .appwatch import AppWatcher
 from .device import KEY_COUNT, DeviceError, StreamDock293S, encode_key_image
 from .registry import KEYS, SOURCES, sources_for
 from .render import blank, empty
@@ -73,11 +74,13 @@ class Daemon:
     """콜백은 UI 가 붙을 때만 쓴다. CLI 로 돌 때는 없어도 된다.
 
     on_status(text, connected) 는 연결 상태가 바뀔 때,
-    on_painted(state) 는 키를 다시 그린 뒤 호출된다. 둘 다 데몬 스레드에서
-    불리므로 UI 는 시그널로 넘겨 받아야 한다.
+    on_painted(state) 는 키를 다시 그린 뒤,
+    on_profile(name) 은 앱 전환으로 프로필이 바뀔 때 호출된다. 전부 데몬
+    스레드에서 불리므로 UI 는 시그널로 넘겨 받아야 한다.
     """
 
-    def __init__(self, cfg: config_module.Config, *, on_status=None, on_painted=None):
+    def __init__(self, cfg: config_module.Config, *,
+                 on_status=None, on_painted=None, on_profile=None):
         self.cfg = cfg
         self.stop_event = threading.Event()
         self.collector: Collector | None = None
@@ -85,16 +88,43 @@ class Daemon:
         self._wake = threading.Event()
         self._on_status = on_status or (lambda _text, _connected: None)
         self._on_painted = on_painted or (lambda _state: None)
+        self._on_profile = on_profile or (lambda _name: None)
+        self._watcher = AppWatcher(self._on_front_app)
 
     def notify(self) -> None:
         """설정이 바뀌었으니 다음 순번에 다시 그리라는 신호."""
         self._sent.clear()
         self._wake.set()
 
+    # ---------- 프로필 ----------
+
+    def _on_front_app(self, app_name: str) -> None:
+        profile = self.cfg.profile_for_app(app_name)
+        if profile and profile.name != self.cfg.active:
+            self.cfg.active = profile.name
+            print(f"{app_name} 때문에 프로필 전환: {profile.name}")
+            self._on_profile(profile.name)
+            self.notify()
+
+    def switch_profile(self, name: str) -> None:
+        if name == self.cfg.active:
+            return
+        self.cfg.active = name
+        self.restart_sources()
+        self.notify()
+
     # ---------- 소스 ----------
 
+    def _needed_sources(self) -> set[str]:
+        """활성 프로필과, 앱에 묶여 언제든 활성화될 프로필의 것을 함께 켠다."""
+        names = set(self.cfg.profile().keys_in_use())
+        for profile in self.cfg.profiles:
+            if profile.app:
+                names |= profile.keys_in_use()
+        return sources_for(names)
+
     def start_sources(self) -> None:
-        needed = sources_for(self.cfg.keys_in_use())
+        needed = self._needed_sources()
         if not needed:
             return
         self.collector = Collector(needed, on_update=lambda _n: self._wake.set())
@@ -116,21 +146,22 @@ class Daemon:
 
     # ---------- 그리기 ----------
 
+    def render_slot(self, index: int, state: State):
+        slot = self.cfg.profile().slots[index]
+        entry = KEYS.get(slot.key) if slot.key else None
+        if entry is None:
+            return empty(index)
+        try:
+            return entry.render(index, state, slot.options)
+        except Exception as exc:
+            print(f"{slot.key} 렌더 실패: {exc}", file=sys.stderr)
+            return blank(index, entry.label, "err")
+
     def paint(self, dock: StreamDock293S, state: State, force: bool = False) -> int:
         """바뀐 키만 다시 보낸다. USB 왕복이 비싸다."""
         sent = 0
         for index in range(KEY_COUNT):
-            name = self.cfg.layout[index]
-            entry = KEYS.get(name) if name else None
-            if entry is None:
-                image = empty(index)
-            else:
-                try:
-                    image = entry.render(index, state)
-                except Exception as exc:
-                    print(f"{name} 렌더 실패: {exc}", file=sys.stderr)
-                    image = blank(index, entry.label, "err")
-            payload = encode_key_image(image, index)
+            payload = encode_key_image(self.render_slot(index, state), index)
             if not force and self._sent.get(index) == payload:
                 continue
             dock.set_key_image(index, payload)
@@ -143,7 +174,8 @@ class Daemon:
     # ---------- 입력 ----------
 
     def on_press(self, index: int) -> None:
-        command = actions_module.to_command(self.cfg.actions.get(str(index)))
+        slot = self.cfg.profile().slots[index]
+        command = actions_module.to_command(slot.action)
         if not command:
             return
         try:
@@ -182,6 +214,7 @@ class Daemon:
 
     def run(self) -> None:
         self.start_sources()
+        self._watcher.start()
         try:
             while not self.stop_event.is_set():
                 try:
@@ -195,6 +228,7 @@ class Daemon:
                 if self.stop_event.wait(RECONNECT_SECONDS):
                     break
         finally:
+            self._watcher.stop()
             self.stop_sources()
             print("종료")
 
