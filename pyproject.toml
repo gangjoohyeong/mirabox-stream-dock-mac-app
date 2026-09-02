@@ -10,9 +10,9 @@ dependencies = [
 ]
 
 [project.scripts]
-mirabox = "mirabox.daemon:main"
-mirabox-probe = "mirabox.device:probe"
-mirabox-preview = "mirabox.render:_preview"
+mirabox = "mirabox.core.daemon:main"
+mirabox-probe = "mirabox.core.device:probe"
+mirabox-preview = "mirabox.core.preview:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -50,14 +50,32 @@ osascript -e 'tell application "StreamDock" to quit'
 
 ## 구조
 
+앱 골격(core)과 외부 연동(integrations)을 나눈다. 코어는 무엇이 등록됐는지만
+알 뿐 각 연동의 사정을 모른다.
+
 ```
 src/mirabox/
-  device.py    HID 전송. 열기, 명령 프레임, 키 이미지 쓰기, 입력 읽기
-  render.py    126x126 키 면을 PIL로 그린다
-  sources/     데이터 수집 (Claude 사용량, Gmail, 캘린더, Jira, GitLab, 빌드서버)
-  daemon.py    루프. 주기적으로 수집하고 그려서 기기에 보낸다
-  config.py    키 배치와 갱신 주기
+  core/
+    device.py     HID 전송. 열기, 명령 프레임, 키 이미지 쓰기, 입력 읽기
+    render.py     카드 골격과 팔레트. 무엇을 그릴지는 모른다
+    registry.py   소스와 키 등록소
+    state.py      키에 넘기는 상태
+    shell.py      외부 명령 실행
+    config.py     키 배치, 밝기, 키 동작
+    daemon.py     루프. 필요한 소스만 켜고 그려서 보낸다
+    preview.py    기기 없이 렌더링 확인
+  integrations/
+    claude/       계정 한도, 컨텍스트, 비용, 캐시, 오늘 토큰, 소모 속도
+    google.py     Gmail, 캘린더
+    atlassian.py  Jira
+    gitlab.py     리뷰 대기 MR
+    buildhost.py  빌드 서버
 ```
+
+연동을 추가하려면 모듈을 하나 만들고 `integrations/__init__.py` 에 한 줄
+넣으면 된다. 소스는 `@source(이름, every=초)`, 키는
+`@key(이름, 라벨, 설명, sources=(...))` 로 등록한다. 데몬은 보드에 올라온
+키가 요구하는 소스만 켠다.
 
 ## 데이터 출처
 
