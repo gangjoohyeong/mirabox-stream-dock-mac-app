@@ -1,0 +1,43 @@
+{
+  "name": "stream-dock",
+  "version": "0.1.0",
+  "description": "Mirabox Stream Dock 293S를 macOS에서 직접 구동하는 앱",
+  "main": "out/main/index.js",
+  "author": "jkang",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "tsc --noEmit && electron-vite build",
+    "start": "electron-vite preview",
+    "dist": "npm run build && electron-builder --mac --dir",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.1",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.1",
+    "@vitejs/plugin-react": "5.1.0",
+    "electron": "44.1.1",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vite": "7.3.6"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
+    "@napi-rs/canvas": "1.0.8",
+    "node-hid": "3.4.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true,
+    "node-hid@3.4.0": true,
+    "electron-winstaller@5.4.0": true
+  }
+}

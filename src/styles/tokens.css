@@ -1,0 +1,171 @@
+/* tokens.css
+ * 이 파일의 변수만 사용한다. 새 값을 만들지 않는다.
+ * 필요한 값이 없으면 만들지 말고 먼저 물어볼 것.
+ *
+ * 폰트: Inter Variable 을 로컬에 번들한다. CDN 을 쓰지 마라 —
+ *      오프라인에서 폰트가 안 뜨면 앱 전체가 무너진다.
+ *      npm i @fontsource-variable/inter 후 진입점에서 import.
+ */
+
+:root {
+  /* ---- 타이포 ---- */
+  --font-ui: "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-xs: 11px;   /* ID, 메타, 배지 */
+  --text-sm: 12px;   /* 보조 라벨, 속성 */
+  --text-base: 13px; /* 기본 */
+  --text-lg: 15px;   /* 패널 제목 */
+  --text-xl: 18px;   /* 화면 제목 (드물게) */
+
+  /* 세 단계만 쓴다. 700 은 쓰지 않는다 */
+  --w-regular: 400;  /* 읽기 */
+  --w-medium: 510;   /* UI 강조 — 기본값에 가깝다 */
+  --w-strong: 590;   /* 강한 강조 */
+
+  --tracking: -0.011em;
+  --tracking-title: -0.02em;
+
+  --leading-tight: 1.3;
+  --leading-normal: 1.45;
+
+  /* ---- 간격 (4px 그리드) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* ---- 반경 (세 값만) ---- */
+  --radius-sm: 4px;  /* 행, 버튼, 입력, 배지 */
+  --radius-md: 6px;  /* 카드, 팝오버 */
+  --radius-lg: 12px; /* 모달, 시트 */
+
+  /* ---- 모션 ---- */
+  --duration-fast: 80ms;
+  --duration-base: 140ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ---- 창 크롬 ---- */
+  --titlebar-height: 40px;
+  --traffic-light-inset: 78px; /* trafficLightPosition 을 바꾸면 같이 조정 */
+  --sidebar-width: 216px;
+  --panel-width: 232px;
+
+  /* ---- 표면 사다리 (다크 우선) ----
+   * 그림자 대신 이 네 단계로 위계를 만든다.
+   * 0 = 가장 뒤(크롬), 3 = 가장 앞(오버레이) */
+  --surface-0: #08090a;
+  --surface-1: #0f1011;
+  --surface-2: #161718;
+  --surface-3: #1f2022;
+
+  --fg: #f7f8f8;
+  --fg-secondary: #b4b8bf;
+  --fg-tertiary: #8a8f98;
+
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.13);
+
+  --fill: rgba(255, 255, 255, 0.04);
+  --fill-hover: rgba(255, 255, 255, 0.06);
+  --fill-active: rgba(255, 255, 255, 0.1);
+
+  /* 액센트는 한 개. 뷰당 기본 동작 하나와 포커스 링에만 */
+  --accent: #4a8fff;
+  --accent-fg: #ffffff;
+
+  /* 상태색은 상태 아이콘에만. 텍스트나 배경에 쓰지 마라 */
+  --status-todo: #8a8f98;
+  --status-doing: #e5a33d;
+  --status-done: #59b57c;
+  --status-blocked: #e5484d;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --surface-0: #fafafa;
+    --surface-1: #ffffff;
+    --surface-2: #f4f5f6;
+    --surface-3: #ebedef;
+
+    --fg: #08090a;
+    --fg-secondary: #52555c;
+    --fg-tertiary: #8a8f98;
+
+    --border: rgba(0, 0, 0, 0.08);
+    --border-strong: rgba(0, 0, 0, 0.15);
+
+    --fill: rgba(0, 0, 0, 0.03);
+    --fill-hover: rgba(0, 0, 0, 0.05);
+    --fill-active: rgba(0, 0, 0, 0.08);
+
+    --accent: #2f7de1;
+
+    --status-doing: #c8842a;
+    --status-done: #3f9b62;
+  }
+}
+
+/* 창이 비활성일 때 색을 죽인다. 네이티브 앱이 하는 일이다.
+ * main 프로세스에서 win.on('blur'|'focus') 로 이 클래스를 토글할 것. */
+body.window-inactive {
+  --fg: var(--fg-secondary);
+  --accent: var(--fg-tertiary);
+}
+
+/* ===== 베이스 ===== */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  /* cv01: 단층 a, ss03: 기하학적 알터네이트, zero: 슬래시 제로.
+   * 이 셋이 Inter 를 범용 폰트가 아닌 이 앱의 서체로 만든다. 지우지 마라. */
+  font-feature-settings: "cv01" on, "ss03" on, "zero" on;
+  font-size: var(--text-base);
+  font-weight: var(--w-regular);
+  letter-spacing: var(--tracking);
+  line-height: var(--leading-normal);
+  color: var(--fg);
+  background: var(--surface-1);
+  user-select: none;  /* 앱 크롬은 선택 불가 */
+  cursor: default;
+  /* -webkit-font-smoothing 을 건드리지 마라. macOS 기본이 이미 회색조 AA 다 */
+}
+
+/* 사용자 콘텐츠에만 붙인다 */
+.selectable {
+  user-select: text;
+  cursor: auto;
+}
+
+/* 타이틀바 드래그. 안쪽 인터랙티브 요소에는 반드시 no-drag */
+.drag-region { -webkit-app-region: drag; }
+.drag-region button,
+.drag-region input,
+.no-drag { -webkit-app-region: no-drag; }
+
+/* 포커스 링은 키보드에서만 */
+:focus { outline: none; }
+:focus-visible {
+  outline: 1.5px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--radius-sm);
+}
+
+/* 오버레이 스크롤바. 두꺼운 커스텀 스크롤바를 만들지 마라 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--fill-active); border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
