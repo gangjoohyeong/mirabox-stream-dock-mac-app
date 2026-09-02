@@ -18,6 +18,7 @@ import time
 from .. import integrations  # noqa: F401  소스와 키를 등록시킨다
 from . import actions as actions_module
 from . import config as config_module
+from . import logs
 from . import shell
 from .appwatch import AppWatcher
 from .device import KEY_COUNT, DeviceError, StreamDock293S, encode_key_image
@@ -234,6 +235,7 @@ class Daemon:
 
 
 def main() -> None:
+    logs.redirect_if_frozen()
     cfg = config_module.load()
     if not config_module.CONFIG_PATH.exists():
         config_module.save(cfg)

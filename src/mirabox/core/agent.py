@@ -23,7 +23,13 @@ def _domain() -> str:
 
 
 def _daemon_command() -> list[str]:
-    """설치된 콘솔 스크립트를 먼저 쓰고, 없으면 현재 인터프리터로 모듈을 부른다."""
+    """무엇을 로그인 때 띄울지 정한다.
+
+    .app 번들로 돌고 있으면 그 앱 자신을 띄운다. 번들에는 CLI 데몬이 따로
+    없고, 앱이 데몬을 품고 있기 때문이다. 개발 중에는 콘솔 스크립트를 쓴다.
+    """
+    if getattr(sys, "frozen", False):
+        return [sys.executable]
     script = Path(sys.executable).with_name("mirabox")
     if script.exists():
         return [str(script)]

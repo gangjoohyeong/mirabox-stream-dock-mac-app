@@ -30,6 +30,7 @@ from ..core import actions as actions_module
 from ..core import agent as agent_module
 from ..core import appwatch
 from ..core import config as config_module
+from ..core import logs
 from ..core.daemon import Daemon
 from ..core.device import COLUMNS, KEY_COUNT
 from ..core.registry import KEYS
@@ -642,6 +643,7 @@ class MainWindow(QMainWindow):
 
 
 def main() -> None:
+    logs.redirect_if_frozen()
     cfg = config_module.load()
     if not config_module.CONFIG_PATH.exists():
         config_module.save(cfg)
