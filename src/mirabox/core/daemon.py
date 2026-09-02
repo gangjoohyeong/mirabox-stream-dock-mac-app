@@ -17,10 +17,11 @@ import time
 
 from .. import integrations  # noqa: F401  소스와 키를 등록시킨다
 from . import config as config_module
+from . import actions as actions_module
 from . import shell
 from .device import KEY_COUNT, DeviceError, StreamDock293S, encode_key_image
 from .registry import KEYS, SOURCES, sources_for
-from .render import blank
+from .render import blank, empty
 from .state import State
 
 RECONNECT_SECONDS = 3.0
@@ -69,12 +70,26 @@ class Collector:
 
 
 class Daemon:
-    def __init__(self, cfg: config_module.Config):
+    """콜백은 UI 가 붙을 때만 쓴다. CLI 로 돌 때는 없어도 된다.
+
+    on_status(text, connected) 는 연결 상태가 바뀔 때,
+    on_painted(state) 는 키를 다시 그린 뒤 호출된다. 둘 다 데몬 스레드에서
+    불리므로 UI 는 시그널로 넘겨 받아야 한다.
+    """
+
+    def __init__(self, cfg: config_module.Config, *, on_status=None, on_painted=None):
         self.cfg = cfg
         self.stop_event = threading.Event()
         self.collector: Collector | None = None
         self._sent: dict[int, bytes] = {}
         self._wake = threading.Event()
+        self._on_status = on_status or (lambda _text, _connected: None)
+        self._on_painted = on_painted or (lambda _state: None)
+
+    def notify(self) -> None:
+        """설정이 바뀌었으니 다음 순번에 다시 그리라는 신호."""
+        self._sent.clear()
+        self._wake.set()
 
     # ---------- 소스 ----------
 
@@ -85,6 +100,11 @@ class Daemon:
         self.collector = Collector(needed, on_update=lambda _n: self._wake.set())
         self.collector.start()
         print(f"소스 {len(needed)}종 수집 시작: {', '.join(sorted(needed))}")
+
+    def restart_sources(self) -> None:
+        """배치가 바뀌어 필요한 소스가 달라졌을 때."""
+        self.stop_sources()
+        self.start_sources()
 
     def stop_sources(self) -> None:
         if self.collector:
@@ -103,7 +123,7 @@ class Daemon:
             name = self.cfg.layout[index]
             entry = KEYS.get(name) if name else None
             if entry is None:
-                image = blank(index, "", "")
+                image = empty(index)
             else:
                 try:
                     image = entry.render(index, state)
@@ -123,7 +143,7 @@ class Daemon:
     # ---------- 입력 ----------
 
     def on_press(self, index: int) -> None:
-        command = self.cfg.actions.get(str(index))
+        command = actions_module.to_command(self.cfg.actions.get(str(index)))
         if not command:
             return
         try:
@@ -138,6 +158,7 @@ class Daemon:
         """기기에 붙어 있는 동안 도는 루프. 끊기면 예외로 빠져나온다."""
         with StreamDock293S() as dock:
             print("기기 연결됨")
+            self._on_status("기기 연결됨", True)
             dock.connect()
             dock.set_brightness(self.cfg.brightness)
             self._sent.clear()
@@ -154,7 +175,10 @@ class Daemon:
                 if self._wake.is_set() or time.monotonic() >= next_paint:
                     self._wake.clear()
                     next_paint = time.monotonic() + self.cfg.refresh_seconds
-                    self.paint(dock, self.state())
+                    dock.set_brightness(self.cfg.brightness)
+                    state = self.state()
+                    self.paint(dock, state)
+                    self._on_painted(state)
 
     def run(self) -> None:
         self.start_sources()
@@ -164,8 +188,10 @@ class Daemon:
                     self.serve()
                 except DeviceError as exc:
                     print(f"{exc} {RECONNECT_SECONDS}초 뒤 재시도", file=sys.stderr)
+                    self._on_status("기기를 찾는 중", False)
                 except OSError as exc:
                     print(f"기기 통신 끊김: {exc}. 재연결 시도", file=sys.stderr)
+                    self._on_status("연결이 끊겨 다시 시도하는 중", False)
                 if self.stop_event.wait(RECONNECT_SECONDS):
                     break
         finally:

@@ -7,10 +7,12 @@ requires-python = ">=3.11"
 dependencies = [
     "hidapi==0.15.0",
     "pillow==12.3.0",
+    "pyside6==6.11.2",
 ]
 
 [project.scripts]
 mirabox = "mirabox.core.daemon:main"
+mirabox-app = "mirabox.ui.app:main"
 mirabox-probe = "mirabox.core.device:probe"
 mirabox-preview = "mirabox.core.preview:main"
 

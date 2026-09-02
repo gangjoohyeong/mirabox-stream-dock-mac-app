@@ -138,7 +138,13 @@ def card(key: int, *, label: str, value: str,
 
 
 def blank(key: int, label: str = "", note: str = "--") -> Image.Image:
+    """값이 아직 없는 키. 자리는 지키되 비어 있음을 알린다."""
     return card(key, label=label, value=note, value_color=DIM)
+
+
+def empty(key: int) -> Image.Image:
+    """아무것도 배치하지 않은 칸. 기기에서는 그냥 꺼진 것처럼 보여야 한다."""
+    return Image.new("RGB", key_size(key), BG)
 
 
 def limit_card(key: int, label: str, window: dict | None, age_ms: float,

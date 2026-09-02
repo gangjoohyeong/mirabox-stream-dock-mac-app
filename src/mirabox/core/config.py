@@ -10,6 +10,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from . import actions as actions_module
 from .device import KEY_COUNT
 
 CONFIG_PATH = Path.home() / ".config" / "mirabox" / "config.json"
@@ -27,15 +28,16 @@ class Config:
     layout: list[str | None] = field(default_factory=lambda: list(DEFAULT_LAYOUT))
     brightness: int = 80
     refresh_seconds: float = 15.0
-    # 키를 눌렀을 때 실행할 셸 명령. 키 번호 문자열 -> 명령
-    actions: dict[str, str] = field(default_factory=dict)
+    # 키 번호 문자열 -> 동작. actions.py 의 구조를 따른다
+    actions: dict[str, dict] = field(default_factory=dict)
 
     def normalized(self) -> "Config":
         layout = (self.layout + [None] * KEY_COUNT)[:KEY_COUNT]
         return Config(layout=layout,
                       brightness=max(0, min(100, int(self.brightness))),
                       refresh_seconds=max(2.0, float(self.refresh_seconds)),
-                      actions=dict(self.actions))
+                      actions={k: actions_module.normalize(v)
+                               for k, v in self.actions.items()})
 
     def keys_in_use(self) -> set[str]:
         return {name for name in self.layout if name}

@@ -70,7 +70,16 @@ src/mirabox/
     atlassian.py  Jira
     gitlab.py     리뷰 대기 MR
     buildhost.py  빌드 서버
+  ui/
+    app.py        조작 화면. 데몬을 워커 스레드로 품는다
 ```
+
+조작 화면과 데몬은 한 프로세스다. 기기는 한 프로세스만 점유할 수 있어서
+따로 두면 IPC 와 경합이 생긴다.
+
+화면은 macOS 기본 위젯에 맡긴다. 스타일시트를 씌우지 않아야 시스템 글꼴과
+밝은/어두운 모드를 따라간다. 직접 그리는 것은 보드 하나뿐인데 그건
+하드웨어를 옮긴 그림이라 어두운 베젤이 맞다.
 
 연동을 추가하려면 모듈을 하나 만들고 `integrations/__init__.py` 에 한 줄
 넣으면 된다. 소스는 `@source(이름, every=초)`, 키는
@@ -122,7 +131,8 @@ Claude Code 2.1.80부터다.
 uv sync                 # 의존성 설치
 uv run mirabox-preview  # 렌더링만 확인 (기기 불필요)
 uv run mirabox-probe    # 기기 통신 확인 (벤더 앱을 먼저 끈다)
-uv run mirabox          # 데몬
+uv run mirabox-app      # 조작 화면 (데몬 포함)
+uv run mirabox          # 화면 없이 데몬만
 ```
 
 렌더링 결과는 **반드시 눈으로 확인한다.** 좌표 계산만 믿으면 안 된다.
