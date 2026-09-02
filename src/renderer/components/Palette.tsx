@@ -11,6 +11,8 @@ import { Command } from 'cmdk'
 export interface PaletteCommand {
   id: string
   group: string
+  /** 묶음 이름 앞 점의 색. 기기 표식과 같은 값이다. */
+  groupColor?: string
   label: string
   /** 이름 뒤에 흐리게 붙는 설명. 이름과 같은 농도로 두면 둘 다 안 읽힌다. */
   detail?: string
@@ -25,10 +27,13 @@ interface Props {
 }
 
 export function Palette({ open, onOpenChange, commands }: Props) {
-  const groups = commands.reduce<Record<string, PaletteCommand[]>>((acc, command) => {
-    ;(acc[command.group] ??= []).push(command)
-    return acc
-  }, {})
+  // 등록 순서를 유지한다. 사전순으로 섞으면 관련된 것끼리 흩어진다.
+  const groups: { name: string; color?: string; items: PaletteCommand[] }[] = []
+  for (const command of commands) {
+    const found = groups.find((group) => group.name === command.group)
+    if (found) found.items.push(command)
+    else groups.push({ name: command.group, color: command.groupColor, items: [command] })
+  }
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -42,12 +47,20 @@ export function Palette({ open, onOpenChange, commands }: Props) {
               <Command.Input placeholder="명령을 입력하거나 검색" autoFocus />
               <Command.List>
                 <Command.Empty>맞는 명령이 없다</Command.Empty>
-                {Object.entries(groups).map(([group, items]) => (
-                  <Command.Group key={group} heading={group}>
-                    {items.map((command) => (
+                {groups.map((group) => (
+                  <Command.Group
+                    key={group.name}
+                    heading={
+                      <>
+                        <span className="dot" style={{ background: group.color ?? 'currentColor' }} />
+                        {group.name}
+                      </>
+                    }
+                  >
+                    {group.items.map((command) => (
                       <Command.Item
                         key={command.id}
-                        value={`${group} ${command.label} ${command.detail ?? ''}`}
+                        value={`${group.name} ${command.label} ${command.detail ?? ''}`}
                         onSelect={() => {
                           command.run()
                           onOpenChange(false)

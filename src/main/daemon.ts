@@ -78,12 +78,16 @@ class Collector {
   }
 
   status(): SourceStatus[] {
-    return [...this.wanted].sort().map((name) => ({
-      name,
-      ok: !(name in this.state.errors) && name in this.state.data,
-      error: this.state.errors[name] ?? null,
-      updatedAt: this.state.updatedAt[name] ?? null,
-    }))
+    return [...this.wanted].sort().map((name) => {
+      const value = this.state.data[name]
+      return {
+        name,
+        ok: !(name in this.state.errors) && name in this.state.data,
+        error: this.state.errors[name] ?? null,
+        updatedAt: this.state.updatedAt[name] ?? null,
+        note: value === undefined ? null : (SOURCES.get(name)?.describe?.(value) ?? null),
+      }
+    })
   }
 }
 

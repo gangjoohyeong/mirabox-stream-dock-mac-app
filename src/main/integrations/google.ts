@@ -2,6 +2,8 @@
 
 import { ACCENT, DANGER, OK, TERTIARY, WARN, blank, card, remainText } from '../render.js'
 import { key, pick, source } from '../registry.js'
+
+const F = 'google' as const
 import { jsonAfterNoise, sh } from '../shell.js'
 
 export const MAIL = 'google.mail'
@@ -40,27 +42,27 @@ source(CALENDAR, 60, async (): Promise<CalendarValue> => {
 })
 
 key({
-  name: 'mail', label: 'MAIL', summary: '안 읽은 메일 수', sources: [MAIL],
+  name: 'mail', label: 'MAIL', summary: '안 읽은 메일 수', family: F, sources: [MAIL],
   render: (index, state) => {
     const value = pick<MailValue>(state, MAIL)
-    if (!value) return blank(index, 'MAIL')
+    if (!value) return blank(index, 'MAIL', '--', F)
     const color = value.unread === 0 ? OK : value.unread >= 100 ? DANGER : WARN
     return card(index, {
-      label: 'MAIL', value: String(value.unread), valueColor: color,
+      label: 'MAIL', value: String(value.unread), valueColor: color, family: F,
       right: String(value.threads), bandColor: color,
     })
   },
 })
 
 key({
-  name: 'cal', label: 'CAL', summary: '다음 일정까지 남은 시간', sources: [CALENDAR],
+  name: 'cal', label: 'CAL', summary: '다음 일정까지 남은 시간', family: F, sources: [CALENDAR],
   render: (index, state) => {
     const value = pick<CalendarValue>(state, CALENDAR)
-    if (!value) return blank(index, 'CAL')
-    if (value.inMin == null) return card(index, { label: 'CAL', value: 'none', valueColor: TERTIARY })
+    if (!value) return blank(index, 'CAL', '--', F)
+    if (value.inMin == null) return card(index, { label: 'CAL', value: 'none', valueColor: TERTIARY, family: F })
     const color = value.inMin <= 15 ? DANGER : value.inMin <= 60 ? WARN : OK
     return card(index, {
-      label: 'CAL', value: remainText(value.inMin), valueColor: color, bandColor: color,
+      label: 'CAL', value: remainText(value.inMin), valueColor: color, bandColor: color, family: F,
     })
   },
 })

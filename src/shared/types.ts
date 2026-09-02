@@ -32,14 +32,20 @@ export interface Config {
 export interface KeyOption {
   name: string
   label: string
-  kind: 'text' | 'file'
+  kind: 'text' | 'file' | 'choice'
   placeholder: string
+  /** kind 가 choice 일 때 고를 수 있는 값 */
+  choices?: MediaChoice[]
 }
 
 export interface KeyInfo {
   name: string
   label: string
   summary: string
+  /** 묶어서 보여줄 이름. 'Claude', 'Google' 같은 출처다. */
+  group: string
+  /** 묶음을 알아볼 색. 기기 표식과 같은 값이다. */
+  groupColor: string
   sources: string[]
   options: KeyOption[]
 }
@@ -49,6 +55,8 @@ export interface SourceStatus {
   ok: boolean
   error: string | null
   updatedAt: number | null
+  /** 값 자체가 낡았을 때의 설명. 마지막으로 읽은 시각과는 다르다. */
+  note: string | null
 }
 
 export interface DeviceStatus {

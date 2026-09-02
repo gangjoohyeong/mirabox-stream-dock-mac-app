@@ -2,6 +2,8 @@
 
 import { OK, WARN, blank, card } from '../render.js'
 import { key, pick, source } from '../registry.js'
+
+const F = 'gitlab' as const
 import { sh } from '../shell.js'
 
 export const REVIEW_MRS = 'gitlab.reviewMrs'
@@ -28,11 +30,11 @@ source(REVIEW_MRS, 120, async (): Promise<MrValue> => {
 })
 
 key({
-  name: 'mr', label: 'MR', summary: '내 리뷰를 기다리는 MR 수', sources: [REVIEW_MRS],
+  name: 'mr', label: 'MR', summary: '내 리뷰를 기다리는 MR 수', family: F, sources: [REVIEW_MRS],
   render: (index, state) => {
     const value = pick<MrValue>(state, REVIEW_MRS)
-    if (!value) return blank(index, 'MR')
+    if (!value) return blank(index, 'MR', '--', F)
     const color = value.count === 0 ? OK : WARN
-    return card(index, { label: 'MR', value: String(value.count), valueColor: color, bandColor: color })
+    return card(index, { label: 'MR', value: String(value.count), valueColor: color, bandColor: color, family: F })
   },
 })

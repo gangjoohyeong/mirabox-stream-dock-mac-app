@@ -20,6 +20,8 @@ import { join } from 'node:path'
 import { INK, blank, card, fmt4, limitCard, toneDown, toneUp } from '../render.js'
 import { key, pick, source, type State } from '../registry.js'
 
+const F = 'claude' as const
+
 export const SNAPSHOT = 'claude.snapshot'
 export const USAGE = 'claude.usage'
 
@@ -73,6 +75,13 @@ source(SNAPSHOT, 5, async (): Promise<SnapshotValue | null> => {
     sevenDay: parseWindow(limits.seven_day, now),
     raw: payload,
   }
+}, (value) => {
+  const snap = value as SnapshotValue | null
+  if (!snap) return null
+  const minutes = Math.round(snap.ageMs / 60_000)
+  if (minutes < 20) return null
+  const age = minutes >= 120 ? `${Math.round(minutes / 60)}시간` : `${minutes}분`
+  return `상태줄이 ${age} 전에 남긴 값이다. 대화형 세션이 그려질 때만 갱신된다`
 })
 
 // ---------- 로컬 jsonl ----------
@@ -233,79 +242,80 @@ const raw = (state: State, field: string): Record<string, any> =>
   pick<SnapshotValue>(state, SNAPSHOT)?.raw?.[field] ?? {}
 
 key({
-  name: 'five', label: '5H', summary: '계정 5시간 한도 사용률', sources: [SNAPSHOT],
+  name: 'five', label: '5H', summary: '계정 5시간 한도 사용률', family: F, sources: [SNAPSHOT],
   render: (index, state) => {
     const snap = pick<SnapshotValue>(state, SNAPSHOT)
-    return limitCard(index, '5H', snap?.fiveHour, snap?.ageMs ?? Infinity)
+    return limitCard(index, '5H', snap?.fiveHour, snap?.ageMs ?? Infinity, F)
   },
 })
 
 key({
-  name: 'seven', label: '7D', summary: '계정 7일 한도 사용률', sources: [SNAPSHOT],
+  name: 'seven', label: '7D', summary: '계정 7일 한도 사용률', family: F, sources: [SNAPSHOT],
   render: (index, state) => {
     const snap = pick<SnapshotValue>(state, SNAPSHOT)
-    return limitCard(index, '7D', snap?.sevenDay, snap?.ageMs ?? Infinity)
+    return limitCard(index, '7D', snap?.sevenDay, snap?.ageMs ?? Infinity, F)
   },
 })
 
 key({
-  name: 'ctx', label: 'CTX', summary: '최근 활동 세션의 컨텍스트 사용률', sources: [SNAPSHOT],
+  name: 'ctx', label: 'CTX', summary: '최근 활동 세션의 컨텍스트 사용률', family: F, sources: [SNAPSHOT],
   render: (index, state) => {
     const window = raw(state, 'context_window')
-    if (typeof window.used_percentage !== 'number') return blank(index, 'CTX')
+    if (typeof window.used_percentage !== 'number') return blank(index, 'CTX', '--', F)
     const pct = Math.max(0, Math.min(100, Math.round(window.used_percentage)))
     return card(index, {
-      label: 'CTX', value: `${pct}%`, valueColor: toneUp(pct),
+      label: 'CTX', value: `${pct}%`, valueColor: toneUp(pct), family: F,
       right: fmt4(window.context_window_size ?? 0), bandPct: pct, bandColor: toneUp(pct),
     })
   },
 })
 
 key({
-  name: 'cost', label: 'COST', summary: '최근 활동 세션의 누적 비용', sources: [SNAPSHOT],
+  name: 'cost', label: 'COST', summary: '최근 활동 세션의 누적 비용', family: F, sources: [SNAPSHOT],
   render: (index, state) => {
     const cost = raw(state, 'cost')
-    if (typeof cost.total_cost_usd !== 'number') return blank(index, 'COST')
+    if (typeof cost.total_cost_usd !== 'number') return blank(index, 'COST', '--', F)
     const hours = Math.round((cost.total_duration_ms ?? 0) / 3_600_000)
     return card(index, {
-      label: 'COST', value: `$${Math.round(cost.total_cost_usd)}`,
+      label: 'COST', value: `$${Math.round(cost.total_cost_usd)}`, family: F,
       right: hours > 0 ? `${hours}h` : null,
     })
   },
 })
 
 key({
-  name: 'cache', label: 'CACHE', summary: '프롬프트 캐시 적중률', sources: [SNAPSHOT],
+  name: 'cache', label: 'CACHE', summary: '프롬프트 캐시 적중률', family: F, sources: [SNAPSHOT],
   render: (index, state) => {
     const cache = raw(state, 'prompt_cache')
-    if (typeof cache.hit_ratio !== 'number') return blank(index, 'CACHE')
+    if (typeof cache.hit_ratio !== 'number') return blank(index, 'CACHE', '--', F)
     const pct = Math.round(cache.hit_ratio * 100)
     return card(index, {
-      label: 'CACHE', value: `${pct}%`, valueColor: toneDown(pct),
+      label: 'CACHE', value: `${pct}%`, valueColor: toneDown(pct), family: F,
       bandPct: pct, bandColor: toneDown(pct),
     })
   },
 })
 
 key({
-  name: 'today', label: 'TODAY', summary: '오늘 누적 토큰', sources: [USAGE],
+  name: 'today', label: 'TODAY', summary: '오늘 누적 토큰', family: F, sources: [USAGE],
   render: (index, state) => {
     const today = pick<UsageValue>(state, USAGE)?.today
-    if (!today) return blank(index, 'TODAY')
+    if (!today) return blank(index, 'TODAY', '--', F)
     return card(index, {
-      label: 'TODAY', value: fmt4(today.tokens), right: String(today.messages), valueColor: INK,
+      label: 'TODAY', value: fmt4(today.tokens), right: String(today.messages),
+      valueColor: INK, family: F,
     })
   },
 })
 
 key({
-  name: 'burn', label: 'BURN', summary: '현재 블록의 분당 토큰 소모', sources: [USAGE],
+  name: 'burn', label: 'BURN', summary: '현재 블록의 분당 토큰 소모', family: F, sources: [USAGE],
   render: (index, state) => {
     const block = pick<UsageValue>(state, USAGE)?.block
-    if (!block?.elapsedMin) return blank(index, 'BURN')
+    if (!block?.elapsedMin) return blank(index, 'BURN', '--', F)
     return card(index, {
       label: 'BURN', value: fmt4(block.tokens / block.elapsedMin),
-      right: String(block.messages), valueColor: INK,
+      right: String(block.messages), valueColor: INK, family: F,
     })
   },
 })

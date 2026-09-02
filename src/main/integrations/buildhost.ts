@@ -2,6 +2,8 @@
 
 import { DANGER, OK, TERTIARY, WARN, blank, card } from '../render.js'
 import { key, pick, source } from '../registry.js'
+
+const F = 'build' as const
 import { sh } from '../shell.js'
 
 export const BUILD = 'buildhost.load'
@@ -22,16 +24,16 @@ source(BUILD, 300, async (): Promise<BuildValue> => {
 })
 
 key({
-  name: 'build', label: 'BUILD', summary: '빌드 서버 부하와 디스크', sources: [BUILD],
+  name: 'build', label: 'BUILD', summary: '빌드 서버 부하와 디스크', family: F, sources: [BUILD],
   render: (index, state) => {
     const value = pick<BuildValue>(state, BUILD)
-    if (!value) return blank(index, 'BUILD')
+    if (!value) return blank(index, 'BUILD', '--', F)
     const ratio = value.cores ? value.load / value.cores : 0
     const color = ratio >= 0.9 ? DANGER : ratio >= 0.5 ? WARN : OK
     return card(index, {
       label: 'BUILD',
       value: value.load < 10 ? value.load.toFixed(1) : String(Math.round(value.load)),
-      valueColor: color,
+      valueColor: color, family: F,
       right: value.diskPct ? `${value.diskPct}%` : null,
       rightColor: value.diskPct >= 85 ? DANGER : TERTIARY,
       bandPct: ratio * 100, bandColor: color,

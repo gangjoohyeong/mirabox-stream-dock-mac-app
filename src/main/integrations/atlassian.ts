@@ -2,6 +2,8 @@
 
 import { DANGER, OK, blank, card } from '../render.js'
 import { key, pick, source } from '../registry.js'
+
+const F = 'atlassian' as const
 import { jsonAfterNoise, sh } from '../shell.js'
 
 export const JIRA_TODAY = 'jira.today'
@@ -15,14 +17,14 @@ source(JIRA_TODAY, 300, async (): Promise<JiraValue> => {
 })
 
 key({
-  name: 'jira', label: 'JIRA', summary: '오늘 Jira 에 기록한 항목 수', sources: [JIRA_TODAY],
+  name: 'jira', label: 'JIRA', summary: '오늘 Jira 에 기록한 항목 수', family: F, sources: [JIRA_TODAY],
   render: (index, state) => {
     const value = pick<JiraValue>(state, JIRA_TODAY)
-    if (!value) return blank(index, 'JIRA')
+    if (!value) return blank(index, 'JIRA', '--', F)
     // 0 이면 일일업무 미등록이다. 이 키의 존재 이유가 그 경고다.
     const color = value.items === 0 ? DANGER : OK
     return card(index, {
-      label: 'JIRA', value: String(value.items), valueColor: color,
+      label: 'JIRA', value: String(value.items), valueColor: color, family: F,
       right: value.items === 0 ? 'todo' : 'done', rightColor: color, bandColor: color,
     })
   },

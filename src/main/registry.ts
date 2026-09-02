@@ -10,6 +10,7 @@
  */
 
 import type { Canvas } from '@napi-rs/canvas'
+import type { Family } from './render.js'
 import type { KeyOption } from '../shared/types.js'
 
 export interface State {
@@ -30,6 +31,13 @@ export interface Source {
   fetch: () => Promise<unknown>
   /** 초 */
   every: number
+  /**
+   * 값 자체가 낡았을 때 조작 화면에 띄울 한 줄.
+   *
+   * 마지막으로 가져온 시각과 값이 만들어진 시각은 다르다. 계정 한도처럼 남이
+   * 떨궈 준 파일을 읽는 소스는 방금 읽었어도 내용이 두 시간 전 것일 수 있다.
+   */
+  describe?: (value: unknown) => string | null
 }
 
 export type RenderFn = (
@@ -44,6 +52,8 @@ export interface Key {
   label: string
   /** 조작 화면에 보여줄 한 줄 설명 */
   summary: string
+  /** 어디서 온 키인지. 조작 화면의 묶음과 기기 표식이 여기서 나온다. */
+  family: Family
   render: RenderFn
   sources: string[]
   options: KeyOption[]
@@ -52,14 +62,20 @@ export interface Key {
 export const SOURCES = new Map<string, Source>()
 export const KEYS = new Map<string, Key>()
 
-export function source(name: string, every: number, fetch: () => Promise<unknown>): void {
-  SOURCES.set(name, { name, every, fetch })
+export function source(
+  name: string,
+  every: number,
+  fetch: () => Promise<unknown>,
+  describe?: (value: unknown) => string | null,
+): void {
+  SOURCES.set(name, { name, every, fetch, describe })
 }
 
 export function key(spec: {
   name: string
   label: string
   summary: string
+  family?: Family
   sources?: string[]
   options?: KeyOption[]
   render: RenderFn
@@ -68,6 +84,7 @@ export function key(spec: {
     name: spec.name,
     label: spec.label,
     summary: spec.summary,
+    family: spec.family ?? 'system',
     render: spec.render,
     sources: spec.sources ?? [],
     options: spec.options ?? [],

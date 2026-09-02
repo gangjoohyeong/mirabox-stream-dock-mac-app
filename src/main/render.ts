@@ -29,6 +29,52 @@ export const OK = '#59b57c'
 export const WARN = '#e5a33d'
 export const DANGER = '#e5484d'
 
+/**
+ * 같은 곳에서 온 키끼리 한눈에 묶이게 하는 표식.
+ *
+ * 골격은 모든 키가 똑같이 쓴다. 상단 라벨, 가운데 수치, 하단 띠. 가독성이
+ * 먼저라 배치는 건드리지 않는다. 대신 라벨의 색과 라벨에 붙는 작은 도형만
+ * 출처마다 다르게 준다.
+ *
+ * 색은 값이 아니라 표식에만 쓴다. 수치의 색은 여전히 의미(좋음/주의/위험)를
+ * 뜻하므로, 출처 색이 수치를 물들이면 안 된다.
+ *
+ * 도형이 주된 구분이고 색은 거들 뿐이다. 색만으로 나누면 95px 키에서, 그것도
+ * 책상 거리에서 헷갈린다. 도형은 서로 확실히 다른 것만 골랐다.
+ *   막대   Claude
+ *   밑줄   Google
+ *   알약   Atlassian
+ *   마름모 GitLab
+ *   삼각   빌드 서버
+ *   동그라미 날씨
+ *   네모   내 맥
+ *   없음   기본, 직접 넣기
+ */
+export type Family =
+  | 'claude' | 'google' | 'atlassian' | 'gitlab' | 'build'
+  | 'weather' | 'system' | 'basic' | 'custom'
+
+type Mark = 'bar' | 'underline' | 'pill' | 'diamond' | 'triangle' | 'circle' | 'square' | 'none'
+
+interface FamilyStyle {
+  /** 조작 화면에서 묶어 보여줄 이름 */
+  title: string
+  color: string
+  mark: Mark
+}
+
+export const FAMILIES: Record<Family, FamilyStyle> = {
+  claude: { title: 'Claude', color: '#d97757', mark: 'bar' },
+  google: { title: 'Google', color: '#5b9bff', mark: 'underline' },
+  atlassian: { title: 'Atlassian', color: '#8b7ff0', mark: 'pill' },
+  gitlab: { title: 'GitLab', color: '#3fb9a8', mark: 'diamond' },
+  build: { title: '빌드 서버', color: '#e08fb0', mark: 'triangle' },
+  weather: { title: '날씨', color: '#6cb6e0', mark: 'circle' },
+  system: { title: '내 맥', color: '#9bd17a', mark: 'square' },
+  basic: { title: '기본', color: TERTIARY, mark: 'none' },
+  custom: { title: '직접 넣기', color: TERTIARY, mark: 'none' },
+}
+
 // 95px 키 기준. 126 기준 설계를 0.754 배 한 값이다.
 const PAD = 8
 const TOP_BASELINE = 26
@@ -100,6 +146,85 @@ export interface Card {
   valueColor?: string
   bandPct?: number | null
   bandColor?: string
+  /** 출처 표식. 생략하면 아무 장식이 없는 시스템 모양이다. */
+  family?: Family
+}
+
+/** 표식이 라벨 앞에서 차지하는 폭. 밑줄과 알약은 라벨을 밀지 않는다. */
+function markAdvance(mark: Mark, scale: number): number {
+  const unit = Math.max(3, Math.round(7 * scale))
+  const gap = Math.max(3, Math.round(5 * scale))
+  if (mark === 'bar') return Math.max(2, Math.round(3 * scale)) + gap
+  if (mark === 'diamond' || mark === 'triangle' || mark === 'circle') return unit + gap
+  if (mark === 'square') return Math.round(unit * 0.85) + gap
+  return 0
+}
+
+/**
+ * 라벨 앞뒤에 출처 표식을 그린다.
+ *
+ * 라벨이 차지할 왼쪽 여백을 돌려준다. 표식이 없으면 0 이다.
+ */
+function drawMark(
+  ctx: SKRSContext2D, mark: Mark, color: string,
+  x: number, baseline: number, labelWidth: number, scale: number,
+): number {
+  const unit = Math.max(3, Math.round(7 * scale))
+  const gap = Math.max(3, Math.round(5 * scale))
+  ctx.fillStyle = color
+
+  if (mark === 'bar') {
+    const w = Math.max(2, Math.round(3 * scale))
+    const h = Math.round(unit * 1.7)
+    ctx.fillRect(x, baseline - h + Math.round(2 * scale), w, h)
+    return w + gap
+  }
+  if (mark === 'diamond') {
+    const r = unit / 2
+    const cy = baseline - Math.round(unit * 0.6)
+    ctx.beginPath()
+    ctx.moveTo(x + r, cy - r)
+    ctx.lineTo(x + unit, cy)
+    ctx.lineTo(x + r, cy + r)
+    ctx.lineTo(x, cy)
+    ctx.closePath()
+    ctx.fill()
+    return unit + gap
+  }
+  if (mark === 'triangle') {
+    const cy = baseline - Math.round(unit * 0.6)
+    ctx.beginPath()
+    ctx.moveTo(x + unit / 2, cy - unit / 2)
+    ctx.lineTo(x + unit, cy + unit / 2)
+    ctx.lineTo(x, cy + unit / 2)
+    ctx.closePath()
+    ctx.fill()
+    return unit + gap
+  }
+  if (mark === 'circle') {
+    const r = unit / 2
+    const cy = baseline - Math.round(unit * 0.6)
+    const lw = Math.max(1.5, 2 * scale)
+    ctx.strokeStyle = color
+    ctx.lineWidth = lw
+    ctx.beginPath()
+    ctx.arc(x + r, cy, r - lw / 2, 0, Math.PI * 2)
+    ctx.stroke()
+    return unit + gap
+  }
+  if (mark === 'square') {
+    const side = Math.round(unit * 0.85)
+    const cy = baseline - Math.round(unit * 0.6)
+    ctx.fillRect(x, cy - side / 2, side, side)
+    return side + gap
+  }
+  if (mark === 'underline') {
+    const h = Math.max(2, Math.round(2.5 * scale))
+    const y = baseline + Math.round(4 * scale)
+    roundRect(ctx, x, y, labelWidth, h, h / 2)
+    return 0
+  }
+  return 0
 }
 
 /** 카드 한 장을 그려 PNG 가 아닌 캔버스로 돌려준다. 인코딩은 encodeKey 가 한다. */
@@ -114,16 +239,44 @@ export function card(key: number, spec: Card): Canvas {
   ctx.fillRect(0, 0, size, size)
   ctx.textBaseline = 'alphabetic'
 
-  const topSize = Math.max(10, Math.round(TOP_SIZE * scale))
   const baseline = Math.round(TOP_BASELINE * scale)
-  ctx.fillStyle = TERTIARY
+  const style = FAMILIES[spec.family ?? 'system']
+  const pillPad = Math.max(3, Math.round(5 * scale))
+  const advance =
+    style.mark === 'pill' ? pillPad * 2 : markAdvance(style.mark, scale)
+
+  // 라벨도 넘치면 줄인다. 사용자가 넣은 글자와 한글 상태말이 그냥 잘려 나갔다.
+  let topSize = Math.max(10, Math.round(TOP_SIZE * scale))
+  const room = size - 2 * pad - advance
+  while (topSize > Math.max(9, Math.round(11 * scale)) && width(ctx, spec.label, topSize) > room) {
+    topSize -= 1
+  }
+  const labelWidth = width(ctx, spec.label, topSize)
+
+  // 알약은 라벨을 감싸므로 글자보다 먼저 깔아야 한다
+  let labelX = pad
+  if (spec.label && style.mark === 'pill') {
+    const top = baseline - topSize + Math.round(4 * scale)
+    const height = topSize + Math.round(2 * scale)
+    ctx.fillStyle = style.color + '2e'
+    roundRect(ctx, pad, top, labelWidth + pillPad * 2, height, Math.round(4 * scale))
+    labelX = pad + pillPad
+  } else if (spec.label) {
+    labelX = pad + drawMark(ctx, style.mark, style.color, pad, baseline, labelWidth, scale)
+  }
+
+  ctx.fillStyle = style.color
   ctx.font = font(topSize, spec.label)
   ctx.textAlign = 'left'
-  ctx.fillText(spec.label, pad, baseline)
+  ctx.fillText(spec.label, labelX, baseline)
+  if (spec.label && style.mark === 'underline') {
+    drawMark(ctx, 'underline', style.color, labelX, baseline, labelWidth, scale)
+  }
 
   // 라벨이 길면 보조값과 겹친다. 폭을 재서 줄이고, 그래도 안 되면 버린다.
   if (spec.right) {
-    const avail = size - 2 * pad - width(ctx, spec.label, topSize) - Math.round(5 * scale)
+    const used = labelX - pad + labelWidth + (style.mark === 'pill' ? pillPad : 0)
+    const avail = size - 2 * pad - used - Math.round(5 * scale)
     for (const trySize of [topSize, Math.max(9, Math.round(SMALL_SIZE * scale))]) {
       if (width(ctx, spec.right, trySize) <= avail) {
         ctx.fillStyle = spec.rightColor ?? TERTIARY
@@ -162,8 +315,8 @@ export function card(key: number, spec: Card): Canvas {
 }
 
 /** 값이 아직 없는 키. 자리는 지키되 비어 있음을 알린다. */
-export const blank = (key: number, label = '', note = '--'): Canvas =>
-  card(key, { label, value: note, valueColor: TERTIARY })
+export const blank = (key: number, label = '', note = '--', family?: Family): Canvas =>
+  card(key, { label, value: note, valueColor: TERTIARY, family })
 
 /** 아무것도 배치하지 않은 칸. 기기에서는 그냥 꺼진 것처럼 보여야 한다. */
 export function empty(key: number): Canvas {
@@ -176,22 +329,32 @@ export function empty(key: number): Canvas {
 }
 
 /** 0..100 퍼센트에 남은 시간을 곁들이는, 한도형 지표의 공통 모양. */
+/**
+ * 0..100 퍼센트에 남은 시간을 곁들이는, 한도형 지표의 공통 모양.
+ *
+ * 값이 낡았으면 그 사실을 감추지 않는다. 계정 한도는 상태줄이 갱신될 때만
+ * 들어오므로 조용한 시간에는 몇 시간씩 멈춘다. 멈춘 20% 를 지금 20% 인 것처럼
+ * 보여주면 안 된다. 색을 죽이고, 남은 시간 대신 값을 받은 지 얼마나 됐는지를
+ * 오른쪽에 적는다.
+ */
 export function limitCard(
   key: number, label: string,
   window: { pct: number; remainMin: number | null } | null | undefined,
-  ageMs: number, staleMs = 30 * 60_000,
+  ageMs: number, family?: Family, staleMs = 20 * 60_000,
 ): Canvas {
-  if (!window) return blank(key, label)
+  if (!window) return blank(key, label, '--', family)
   const stale = ageMs > staleMs
   const color = stale ? TERTIARY : toneUp(window.pct)
+  const age = Math.round(ageMs / 60_000)
   return card(key, {
     label,
     value: `${window.pct}%`,
     valueColor: color,
-    right: window.remainMin == null ? null : remainText(window.remainMin),
-    rightColor: stale ? TERTIARY : TERTIARY,
+    right: stale ? `-${remainText(age)}` : window.remainMin == null ? null : remainText(window.remainMin),
+    rightColor: stale ? WARN : TERTIARY,
     bandPct: window.pct,
-    bandColor: color,
+    bandColor: stale ? TRACK : color,
+    family,
   })
 }
 

@@ -17,6 +17,7 @@ import * as configModule from './config.js'
 import { KEY_COUNT } from './device.js'
 import './integrations/index.js'
 import { KEYS } from './registry.js'
+import { FAMILIES } from './render.js'
 import { Daemon } from './daemon.js'
 import { MenuBar } from './tray.js'
 import type { Config, KeyInfo, Slot, Snapshot } from '../shared/types.js'
@@ -91,6 +92,8 @@ function keyInfos(): KeyInfo[] {
     name: entry.name,
     label: entry.label,
     summary: entry.summary,
+    group: FAMILIES[entry.family].title,
+    groupColor: FAMILIES[entry.family].color,
     sources: entry.sources,
     options: entry.options,
   }))

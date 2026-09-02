@@ -6,6 +6,8 @@
  */
 
 import './basic.js'
+import './system.js'
+import './weather.js'
 import './claude.js'
 import './google.js'
 import './atlassian.js'

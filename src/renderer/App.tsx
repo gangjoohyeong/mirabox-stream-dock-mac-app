@@ -125,21 +125,22 @@ export function App() {
   const commands = useMemo<PaletteCommand[]>(() => {
     if (!state || !meta || !profile) return []
     const list: PaletteCommand[] = []
-    for (const entry of meta.keys) {
-      list.push({
-        id: `set-${entry.name}`,
-        group: '이 칸에 표시',
-        label: entry.label,
-        detail: entry.summary,
-        run: () => void window.api.setSlot(selected, { key: entry.name }),
-      })
-    }
     list.push({
       id: 'clear-slot',
       group: '이 칸에 표시',
       label: '비우기',
       run: () => void window.api.setSlot(selected, { key: null }),
     })
+    for (const entry of meta.keys) {
+      list.push({
+        id: `set-${entry.name}`,
+        group: entry.group,
+        groupColor: entry.groupColor,
+        label: entry.label,
+        detail: entry.summary,
+        run: () => void window.api.setSlot(selected, { key: entry.name }),
+      })
+    }
     for (const item of state.config.profiles) {
       if (item.name === state.config.active) continue
       list.push({
@@ -289,7 +290,7 @@ export function App() {
                 />
                 <span className="name">{source.name}</span>
                 <span className="detail">
-                  {source.error ?? (source.ok ? '' : '아직 받지 못했다')}
+                  {source.error ?? source.note ?? (source.ok ? '' : '아직 받지 못했다')}
                 </span>
                 <span className="time">{relativeTime(source.updatedAt)}</span>
               </div>
@@ -314,6 +315,8 @@ export function App() {
                   value: entry.name,
                   label: entry.summary,
                   tag: entry.label,
+                  group: entry.group,
+                  groupColor: entry.groupColor,
                 })),
               ]}
             />
@@ -323,30 +326,43 @@ export function App() {
           {keyInfo?.options.map((option) => (
             <div className="field" key={option.name}>
               <label>{option.label}</label>
-              <div className="field-row">
-                <input
-                  className="input"
-                  placeholder={option.placeholder}
-                  defaultValue={slot?.options[option.name] ?? ''}
-                  key={`${selected}-${slot?.key}-${option.name}`}
-                  onBlur={(event) =>
-                    void window.api.setSlot(selected, {
-                      options: { [option.name]: event.target.value },
-                    })
+              {option.kind === 'choice' ? (
+                <Select
+                  ariaLabel={option.label}
+                  value={slot?.options[option.name] ?? option.choices?.[0]?.value ?? ''}
+                  onChange={(value) =>
+                    void window.api.setSlot(selected, { options: { [option.name]: value } })
                   }
+                  options={option.choices ?? []}
                 />
-                {option.kind === 'file' ? (
-                  <button
-                    className="button"
-                    onClick={async () => {
-                      const path = await window.api.pickFile()
-                      if (path) void window.api.setSlot(selected, { options: { [option.name]: path } })
-                    }}
-                  >
-                    고르기
-                  </button>
-                ) : null}
-              </div>
+              ) : (
+                <div className="field-row">
+                  <input
+                    className="input"
+                    placeholder={option.placeholder}
+                    defaultValue={slot?.options[option.name] ?? ''}
+                    key={`${selected}-${slot?.key}-${option.name}`}
+                    onBlur={(event) =>
+                      void window.api.setSlot(selected, {
+                        options: { [option.name]: event.target.value },
+                      })
+                    }
+                  />
+                  {option.kind === 'file' ? (
+                    <button
+                      className="button"
+                      onClick={async () => {
+                        const path = await window.api.pickFile()
+                        if (path) {
+                          void window.api.setSlot(selected, { options: { [option.name]: path } })
+                        }
+                      }}
+                    >
+                      고르기
+                    </button>
+                  ) : null}
+                </div>
+              )}
             </div>
           ))}
 
