@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as agent from './agent.js'
 import { ACTION_LABELS, MEDIA_CHOICES } from './actions.js'
-import { listApps } from './appwatch.js'
+import { appIndex } from './appwatch.js'
 import * as configModule from './config.js'
 import { KEY_COUNT } from './device.js'
 import './integrations/index.js'
@@ -57,7 +57,12 @@ function createWindow(): BrowserWindow {
   })
   // 네이티브 앱이 하는 일이다. 비활성일 때 색을 죽인다.
   win.on('blur', () => !win.isDestroyed() && win.webContents.send('window:active', false))
-  win.on('focus', () => !win.isDestroyed() && win.webContents.send('window:active', true))
+  win.on('focus', () => {
+    if (win.isDestroyed()) return
+    win.webContents.send('window:active', true)
+    // 그 사이에 앱을 설치했거나 껐을 수 있다. 오래됐을 때만 다시 훑는다
+    void appIndex.refresh().then(push)
+  })
   win.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
     return { action: 'deny' }
@@ -107,7 +112,8 @@ async function snapshot(): Promise<Snapshot> {
     sources: current.sourceStatus(),
     tiles: current.tiles(),
     runAtLogin: agent.isInstalled(),
-    runningApps: listApps(),
+    // 캐시에서 바로 준다. 훑기는 창이 앞으로 나올 때 뒤에서 돈다
+    apps: appIndex.list(),
   }
 }
 
@@ -306,7 +312,8 @@ app.whenReady().then(async () => {
       }
       // 화면 안을 눌러야 나오는 것도 찍는다. 개발용 통로다
       if (process.env.SHOT_SCRIPT) {
-        await window!.webContents.executeJavaScript(process.env.SHOT_SCRIPT)
+        const result = await window!.webContents.executeJavaScript(process.env.SHOT_SCRIPT)
+        if (result !== undefined) console.log('스크립트:', JSON.stringify(result))
         await new Promise((resolve) => setTimeout(resolve, 800))
       }
       const image = await window!.webContents.capturePage()

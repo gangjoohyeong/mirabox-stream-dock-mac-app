@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Action, KeyInfo, Snapshot } from '../shared/types'
+import { AppPicker } from './components/AppPicker'
 import { NameDialog } from './components/NameDialog'
 import { Palette, type PaletteCommand } from './components/Palette'
 import { Select } from './components/Select'
@@ -395,20 +396,26 @@ export function App() {
             </div>
           ) : null}
 
-          {slot && ['app', 'url', 'shell'].includes(slot.action.kind) ? (
+          {slot && slot.action.kind === 'app' ? (
+            <div className="field">
+              <label>실행할 앱</label>
+              <AppPicker
+                ariaLabel="실행할 앱"
+                value={slot.action.value}
+                apps={state.apps}
+                onChange={(id) => void window.api.setAction(selected, { kind: 'app', value: id })}
+              />
+            </div>
+          ) : null}
+
+          {slot && ['url', 'shell'].includes(slot.action.kind) ? (
             <div className="field">
               <label>값</label>
               <input
                 className="input"
                 key={`${selected}-${slot.action.kind}`}
                 defaultValue={slot.action.value}
-                placeholder={
-                  slot.action.kind === 'app'
-                    ? 'Safari'
-                    : slot.action.kind === 'url'
-                      ? 'https://example.com'
-                      : 'say hello'
-                }
+                placeholder={slot.action.kind === 'url' ? 'https://example.com' : 'say hello'}
                 onBlur={(event) =>
                   void window.api.setAction(selected, {
                     kind: slot.action.kind,
@@ -423,22 +430,26 @@ export function App() {
 
           <div className="field">
             <label>이 프로필을 쓸 앱</label>
-            <Select
+            <AppPicker
               ariaLabel="프로필에 연결할 앱"
               value={profile?.app ?? ''}
-              onChange={(value) => void window.api.setProfileApp(value)}
-              options={[
-                { value: '', label: '연결 안 함' },
-                ...state.runningApps.map((name) => ({ value: name, label: name })),
-              ]}
+              apps={state.apps}
+              emptyLabel="연결 안 함"
+              onChange={(id) => void window.api.setProfileApp(id)}
             />
             <p className="hint">고른 앱이 앞으로 나오면 이 프로필로 자동 전환한다.</p>
           </div>
 
           <div className="toggle-row">
-            <span>로그인할 때 자동 시작</span>
-            <button className="button" onClick={toggleLogin}>
-              {state.runAtLogin ? '끄기' : '켜기'}
+            <span id="run-at-login">로그인할 때 자동 시작</span>
+            <button
+              className="switch"
+              role="switch"
+              aria-checked={state.runAtLogin}
+              aria-labelledby="run-at-login"
+              onClick={toggleLogin}
+            >
+              <span className="knob" />
             </button>
           </div>
           {loginError ? <p className="hint error">{loginError}</p> : null}

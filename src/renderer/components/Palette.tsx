@@ -7,6 +7,7 @@
 
 import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
+import { matches } from './filter'
 
 export interface PaletteCommand {
   id: string
@@ -43,7 +44,7 @@ export function Palette({ open, onOpenChange, commands }: Props) {
             <Dialog.Title className="sr-only" style={{ display: 'none' }}>
               명령
             </Dialog.Title>
-            <Command loop>
+            <Command loop filter={matches}>
               <Command.Input placeholder="명령을 입력하거나 검색" autoFocus />
               <Command.List>
                 <Command.Empty>맞는 명령이 없다</Command.Empty>

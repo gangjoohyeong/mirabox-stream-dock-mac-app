@@ -81,10 +81,16 @@ export function profileOf(config: Config, name?: string): Profile {
 }
 
 /** 앞으로 나온 앱에 묶인 프로필. 없으면 null. */
-export function profileForApp(config: Config, app: string): Profile | null {
-  if (!app) return null
-  const lower = app.toLowerCase()
-  return config.profiles.find((p) => p.app && p.app.toLowerCase() === lower) ?? null
+/**
+ * 앞으로 나온 앱에 묶인 프로필.
+ *
+ * 지금 저장하는 값은 번들 ID 다. 이름으로 저장하던 시절의 설정이 남아 있을 수
+ * 있어 표시 이름으로도 한 번 더 맞춰 본다. 굳이 옮겨 적게 하지 않는다.
+ */
+export function profileForApp(config: Config, id: string, name = ''): Profile | null {
+  const keys = [id, name].filter(Boolean).map((k) => k.toLowerCase())
+  if (keys.length === 0) return null
+  return config.profiles.find((p) => p.app && keys.includes(p.app.toLowerCase())) ?? null
 }
 
 export function keysInUse(profile: Profile): Set<string> {

@@ -11,7 +11,7 @@
 
 import { EventEmitter } from 'node:events'
 import { toCommand } from './actions.js'
-import { AppWatcher } from './appwatch.js'
+import { AppWatcher, type FrontApp } from './appwatch.js'
 import { keysInUse, profileForApp, profileOf, save } from './config.js'
 import { DeviceError, KEY_COUNT, StreamDock } from './device.js'
 import { warmImages } from './integrations/index.js'
@@ -172,8 +172,8 @@ export class Daemon extends EventEmitter<DaemonEvents> {
 
   // ---------- 프로필 ----------
 
-  private onFrontApp(app: string): void {
-    const profile = profileForApp(this.config, app)
+  private onFrontApp(app: FrontApp): void {
+    const profile = profileForApp(this.config, app.id, app.name)
     if (profile && profile.name !== this.config.active) {
       this.config.active = profile.name
       save(this.config)

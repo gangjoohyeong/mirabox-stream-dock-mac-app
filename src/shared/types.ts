@@ -17,7 +17,12 @@ export interface Slot {
 export interface Profile {
   name: string
   slots: Slot[]
-  /** 이 앱이 앞으로 나오면 자동 전환한다. 빈 값이면 수동 전환만. */
+  /**
+   * 이 앱이 앞으로 나오면 자동 전환한다. 빈 값이면 수동 전환만.
+   *
+   * 값은 번들 ID(`com.microsoft.VSCode`)다. 예전 설정에는 이름이 들어 있을 수
+   * 있어 이름도 함께 맞춰 본다.
+   */
   app: string
 }
 
@@ -72,10 +77,22 @@ export interface Snapshot {
   /** 칸별 미리보기. data:image/png;base64 */
   tiles: string[]
   runAtLogin: boolean
-  runningApps: string[]
+  apps: AppInfo[]
 }
 
-/** 로그인 자동 시작 등록 결과. 실패하면 이유를 화면에 띄운다. */
+/**
+ * 고를 수 있는 앱 하나.
+ *
+ * 이름은 사람에게 보여줄 뿐이고, 붙잡는 것도 실행하는 것도 전부 id 로 한다.
+ * 같은 앱이 파일명, Info.plist, 화면 표시에서 서로 다른 이름을 갖는다.
+ */
+export interface AppInfo {
+  id: string
+  name: string
+  running: boolean
+}
+
+/** 로그인 자동 시작 결과. 실패하면 이유를 화면에 띄운다. */
 export interface LoginResult {
   ok: boolean
   message: string

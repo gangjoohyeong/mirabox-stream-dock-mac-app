@@ -190,6 +190,8 @@ npm run dist             # .app 패키징
 npx tsx tools/rot-check.ts       # 회전 방향 확인 (기기 불필요)
 npx tsx tools/registry-check.ts  # 등록소 목록 (기기 불필요)
 npx tsx tools/preview.ts /tmp/keys.png  # 모든 키를 한 장에 (기기 불필요)
+npx tsx tools/board.ts /tmp/board.png   # 지금 설정을 기기 모양으로 (문서용)
+npx tsx tools/identify.ts               # 기기 정체만 읽기 (열지 않는다)
 ```
 
 화면 기록 권한이 없어도 창을 확인할 수 있다. 앱이 스스로 찍는다.
@@ -265,6 +267,16 @@ osacompile -o /tmp/x.scpt -e '<스크립트>'
 권한을 묻는 창이 뜬다. `lsappinfo front` 와 `lsappinfo info -only name` 은
 권한 없이 된다.
 
+**앱을 이름으로 붙잡으면 안 된다.** 같은 앱이 세 이름을 갖는다. 번들 파일명
+(`Visual Studio Code.app`), 스스로 보고하는 이름(`Code`), 현지화된 표시 이름
+(`텍스트 편집기`). `open -a "Code"` 는 실패하고 `open -b com.microsoft.VSCode`
+는 된다. 붙잡는 것도 실행하는 것도 번들 ID 로 한다. 이름은 보여주기에만 쓴다.
+
+**cmdk 는 항목 값을 NFD 로 정규화한다.** `카` 가 `ᄏ`+`ᅡ`(U+110F U+1161) 로
+쪼개져 넘어오는데 검색어는 사용자가 친 NFC 그대로다. 라틴 문자는 멀쩡하지만
+한글은 무엇을 쳐도 걸리지 않는다. 이 앱은 화면이 전부 한글이라 치명적이다.
+`components/filter.ts` 에서 양쪽을 NFC 로 맞춘다.
+
 **Radix Select 는 빈 문자열 값을 거부한다.** `value=""` 인 항목은 조용히
 접히고 엉뚱한 항목이 골라진 것처럼 보인다. 안에서만 쓰는 자리표시자로 바꿔
 넘기고 밖으로 낼 때 되돌린다.
@@ -291,12 +303,3 @@ osacompile -o /tmp/x.scpt -e '<스크립트>'
 - em dash(`—`), en dash 를 em dash 대용으로, 가운뎃점(`·`)을 쓰지 않는다.
   쉼표, 콜론, 괄호, 슬래시, 또는 문장을 나눠서 쓴다
 - 표와 admonition 을 쓰고 평문으로 적는다
-
-## 커밋
-
-- 이 저장소는 main 에 바로 커밋하고 푸시한다 (소유자 지시)
-- 커밋 메시지 끝에 다음 줄을 넣는다
-
-```
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-```

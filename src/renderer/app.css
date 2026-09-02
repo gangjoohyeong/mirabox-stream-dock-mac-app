@@ -568,6 +568,115 @@ kbd {
   font-size: var(--text-sm);
 }
 
+/* ===== 앱 고르기 ===== */
+
+/* 설치된 앱이 백 개가 넘어 검색이 붙는다. 팔레트와 같은 결로 둔다. */
+.picker {
+  z-index: 20;
+  /* 필드와 같은 폭으로 둔다. 더 넓으면 오른쪽 끝에 밀려 삐뚤어져 보인다. */
+  width: var(--radix-popover-trigger-width);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.picker [cmdk-input] {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-bottom: 0.5px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-sm);
+  letter-spacing: inherit;
+  outline: none;
+}
+.picker [cmdk-input]::placeholder {
+  color: var(--fg-tertiary);
+}
+.picker [cmdk-list] {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  scroll-padding: var(--space-1);
+}
+.picker [cmdk-item] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  font-size: var(--text-sm);
+}
+.picker [cmdk-item][data-selected='true'] {
+  background: var(--fill-active);
+}
+.picker [cmdk-item] .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.picker [cmdk-item] .badge,
+.picker [cmdk-item] .check {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--fg-tertiary);
+}
+.picker [cmdk-item] .check {
+  color: var(--accent);
+}
+.picker [cmdk-empty] {
+  padding: var(--space-3);
+  color: var(--fg-tertiary);
+  font-size: var(--text-sm);
+}
+.muted {
+  color: var(--fg-tertiary);
+}
+
+/* ===== 스위치 ===== */
+
+/* 켬과 끔이 상태로 보여야 한다. '켜기' 라고 적힌 단추는 지금 상태가 아니라
+ * 누르면 벌어질 일을 말하므로 매번 한 번 더 생각하게 만든다. */
+.switch {
+  flex: none;
+  position: relative;
+  width: 30px;
+  height: 18px;
+  padding: 0;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--fill);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+.switch[aria-checked='true'] {
+  border-color: transparent;
+  background: var(--accent);
+}
+.switch .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--fg-secondary);
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+.switch[aria-checked='true'] .knob {
+  transform: translateX(12px);
+  background: var(--accent-fg);
+}
+
 /* ===== 스켈레톤 ===== */
 /* 200ms 미만이면 아무것도 보여주지 않는다. 그 판단은 컴포넌트가 한다. */
 

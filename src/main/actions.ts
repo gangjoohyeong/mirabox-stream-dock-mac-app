@@ -59,6 +59,9 @@ export const MEDIA_CHOICES: MediaChoice[] = Object.entries(MEDIA).map(([value, m
 
 const quote = (text: string) => `'${text.replace(/'/g, `'\\''`)}'`
 
+/** `com.microsoft.VSCode` 처럼 생겼나. 공백 있는 이름과 갈라내기만 하면 된다. */
+const isBundleId = (text: string) => /^[A-Za-z0-9][A-Za-z0-9._-]*\.[A-Za-z0-9._-]+$/.test(text)
+
 export function normalizeAction(raw: unknown): Action {
   if (typeof raw === 'string') return raw ? { kind: 'shell', value: raw } : { kind: 'none', value: '' }
   if (raw && typeof raw === 'object') {
@@ -74,7 +77,9 @@ export function toCommand(raw: unknown): string | null {
   const { kind, value } = normalizeAction(raw)
   const trimmed = value.trim()
   if (kind === 'none' || !trimmed) return null
-  if (kind === 'app') return `open -a ${quote(trimmed)}`
+  // `open -a` 는 번들 파일명만 받는다. `open -a "Code"` 는 실패하고
+  // `open -b com.microsoft.VSCode` 는 된다. 이름으로 저장된 옛 값만 -a 로 보낸다.
+  if (kind === 'app') return isBundleId(trimmed) ? `open -b ${quote(trimmed)}` : `open -a ${quote(trimmed)}`
   if (kind === 'url') return `open ${quote(trimmed)}`
   if (kind === 'shell') return trimmed
   if (kind === 'media') {
