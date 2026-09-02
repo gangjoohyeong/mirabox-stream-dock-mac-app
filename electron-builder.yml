@@ -1,0 +1,29 @@
+appId: com.jkang.mirabox
+productName: Stream Dock
+copyright: jkang
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+
+# 네이티브 모듈은 asar 밖에 둬야 dlopen 이 된다.
+# node-hid 는 hidapi 를, @napi-rs/canvas 는 렌더링 백엔드를 각각 .node 로 연다.
+asarUnpack:
+  - '**/node_modules/node-hid/**'
+  - '**/node_modules/@napi-rs/canvas*/**'
+
+mac:
+  category: public.app-category.utilities
+  target:
+    - target: dir
+      arch: arm64
+  # 서명 없이 로컬에서 쓴다. 배포하려면 여기에 identity 를 넣는다.
+  identity: null
+  extendInfo:
+    # 메뉴 막대에 남는 앱이지만 창도 있으므로 Dock 에는 계속 보인다
+    LSUIElement: false

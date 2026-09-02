@@ -1,4 +1,10 @@
-/** 회전 방향이 검증된 파이썬 구현(PIL rotate(90), 반시계)과 같은지 확인한다. */
+/**
+ * 회전 방향을 확인한다.
+ *
+ * 기기가 요구하는 것은 반시계 90도다. 시계 방향으로 돌리면 화면이 뒤집혀
+ * 나온다. 참고한 Rust 구현은 시계 방향 회전에 좌우 반전을 붙여 같은 결과를
+ * 내므로 그대로 옮기면 틀린다. 픽셀을 찍어 방향만 본다.
+ */
 import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { encodeKey } from '../src/main/render.js'
 
@@ -27,7 +33,7 @@ async function main() {
   console.log('  회전 후 좌하단:', at(12, S - 12))
   console.log('  회전 후 우하단:', at(S - 12, S - 12))
   const ok = at(12, S - 12) === '빨강' && at(12, 12) === '초록'
-  console.log(ok ? '\n반시계 90도 확인. 파이썬 구현과 동일하다' : '\n회전 방향이 다르다')
+  console.log(ok ? '\n반시계 90도 확인' : '\n회전 방향이 다르다')
   process.exit(ok ? 0 : 1)
 }
 main()

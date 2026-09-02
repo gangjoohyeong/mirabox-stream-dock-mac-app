@@ -18,12 +18,16 @@ import { KEY_COUNT } from './device.js'
 import './integrations/index.js'
 import { KEYS } from './registry.js'
 import { Daemon } from './daemon.js'
+import { MenuBar } from './tray.js'
 import type { Config, KeyInfo, Slot, Snapshot } from '../shared/types.js'
 
 const dirname = fileURLToPath(new URL('.', import.meta.url))
 
 let window: BrowserWindow | null = null
 let daemon: Daemon | null = null
+let menuBar: MenuBar | null = null
+// 창을 닫는 것과 앱을 끝내는 것은 다르다. 이 값으로만 구분된다.
+let quitting = false
 
 // ---------- 창 ----------
 
@@ -44,6 +48,12 @@ function createWindow(): BrowserWindow {
   })
 
   win.on('ready-to-show', () => win.show())
+  // 창을 닫아도 데몬은 계속 돈다. 메뉴 막대에서 다시 연다.
+  win.on('close', (event) => {
+    if (quitting) return
+    event.preventDefault()
+    win.hide()
+  })
   // 네이티브 앱이 하는 일이다. 비활성일 때 색을 죽인다.
   win.on('blur', () => win.webContents.send('window:active', false))
   win.on('focus', () => win.webContents.send('window:active', true))
@@ -58,6 +68,15 @@ function createWindow(): BrowserWindow {
     void win.loadFile(join(dirname, '../renderer/index.html'))
   }
   return win
+}
+
+function showWindow(): void {
+  if (!window || window.isDestroyed()) window = createWindow()
+  else {
+    window.show()
+    window.focus()
+  }
+  app.focus({ steal: true })
 }
 
 // ---------- 스냅샷 ----------
@@ -85,6 +104,13 @@ async function snapshot(): Promise<Snapshot> {
 }
 
 function push(): void {
+  const current = daemon
+  if (!current) return
+  menuBar?.update(
+    current.device.connected ? '기기 연결됨' : current.device.message,
+    current.config.profiles.map((profile) => profile.name),
+    current.config.active,
+  )
   void snapshot().then((data) => window?.webContents.send('state:changed', data))
 }
 
@@ -232,8 +258,18 @@ app.whenReady().then(async () => {
 
   registerIpc()
   buildMenu()
+  menuBar = new MenuBar({
+    onOpen: () => showWindow(),
+    onQuit: () => app.quit(),
+    onProfile: (name) => {
+      daemon!.switchProfile(name)
+      persist()
+    },
+  })
+  menuBar.start()
   window = createWindow()
   daemon.start()
+  push()
 
   // 개발용. 화면 기록 권한 없이도 창을 확인할 수 있게 스스로 찍는다.
   if (process.env.SHOT_PATH) {
@@ -248,18 +284,21 @@ app.whenReady().then(async () => {
     }, Number(process.env.SHOT_DELAY ?? 9000))
   }
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) window = createWindow()
-  })
+  app.on('activate', () => showWindow())
 })
 
-app.on('window-all-closed', () => app.quit())
+// 창을 다 닫아도 끝내지 않는다. 메뉴 막대에 남아 기기를 계속 그린다.
+app.on('window-all-closed', () => {})
 
 app.on('before-quit', async (event) => {
+  quitting = true
   if (!daemon) return
   event.preventDefault()
   const current = daemon
   daemon = null
+  menuBar?.stop()
+  menuBar = null
+  // HID 핸들을 쥔 채 죽으면 기기가 잠긴다
   await current.stop()
   app.quit()
 })

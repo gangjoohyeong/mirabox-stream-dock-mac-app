@@ -4,7 +4,7 @@
 
 ## 무엇을 만드는가
 
-Mirabox Stream Dock 293S를 macOS에서 직접 구동하는 데몬이다. 벤더 앱
+Mirabox Stream Dock 293S를 macOS에서 직접 구동하는 앱이다. 벤더 앱
 (StreamDock.app)을 대체한다. 키에 정보를 그려 넣고 키 입력을 받는다.
 
 만드는 이유는 벤더 앱이 불안정하기 때문이다. 2026-09-02 관측 기준으로
@@ -12,6 +12,9 @@ Mirabox Stream Dock 293S를 macOS에서 직접 구동하는 데몬이다. 벤더
 반복해서 찍혔다. 설치된 빌드(3.10.190.421)는 공개 최신판(3.10.185.1120)보다
 높아 업그레이드로 해결할 수 없다. 실행 파일은 2025년 6월 빌드인데 호스트는
 macOS 26.5라 호환성 문제로 보인다.
+
+처음에는 파이썬으로 만들었고 지금은 Electron 이다. 파이썬 구현은 남기지
+않았다. 옛 문서나 주석에서 `uv run mirabox-*` 를 보면 그건 지운 것이다.
 
 ## 기기 사실
 
@@ -28,69 +31,68 @@ macOS 26.5라 호환성 문제로 보인다.
 | 폴링 간격 | 125 ms |
 | 펌웨어 문자열 | `V2.293S.00.003` |
 | 키 배열 | 6 x 3 = 18 |
-| 키 이미지 | 85x85 JPEG, 90도 회전. 우측 열 3개는 80x80 |
-| 치수 기준 | 126 기준 설계의 0.675 배. 상단 20px, 주 수치 31px, 띠 8px |
-| 키 매핑 | 좌상단부터 행 우선 0..17. 실기기 확인 완료 |
+| 키 이미지 | 본체 95x95, 사이드(논리 5, 11, 17) 82x82 |
+| 이미지 형식 | JPEG. **반시계 90도** 회전. 좌우 반전은 하지 않는다 |
+| 기기 키 ID | `0d 0a 07 04 01 10 / 0e 0b 08 05 02 11 / 0f 0c 09 06 03 12` |
 | 입력 보고 | `ACK\0\0OK\0\0` + 바이트 9 에 기기 키 ID. 뗄 때만 온다 |
 
-`hidapi`로 **sudo 없이 열린다.** 벤더 정의 usage page라 macOS가 키보드나
+`node-hid` 로 **sudo 없이 열린다.** 벤더 정의 usage page 라 macOS 가 키보드나
 마우스에 거는 제약을 받지 않는다. Input Monitoring 권한도 필요 없었다.
+
+명령 프레임은 리포트 ID `0x00` 뒤에 ASCII `CRT\0\0` 를 붙이고 명령을 잇는다.
+`CONNECT`, `DIS`, `CLE`, `LIG`(밝기), `BAT`(이미지: 길이 BE16 + 키 ID),
+`STP`(반영) 를 쓴다.
 
 ## 반드시 지킬 것
 
-**벤더 앱과 동시에 실행하면 안 된다.** StreamDock.app이 떠 있으면 기기를
+**벤더 앱과 동시에 실행하면 안 된다.** StreamDock.app 이 떠 있으면 기기를
 점유한다. 개발 중에는 먼저 종료한다.
 
 ```bash
 osascript -e 'tell application "StreamDock" to quit'
 ```
 
-앱은 종료 시 `StreamDock::quitApp()`에서 널 참조로 세그폴트를 낸다. 종료가
-매끄럽지 않아도 정상이며, 필요하면 `pkill -x StreamDock`을 쓴다.
+앱은 종료 시 `StreamDock::quitApp()` 에서 널 참조로 세그폴트를 낸다. 종료가
+매끄럽지 않아도 정상이며, 필요하면 `pkill -x StreamDock` 을 쓴다.
 
 ## 구조
 
-앱 골격(core)과 외부 연동(integrations)을 나눈다. 코어는 무엇이 등록됐는지만
-알 뿐 각 연동의 사정을 모른다.
+앱 골격과 외부 연동(integrations)을 나눈다. 골격은 무엇이 등록됐는지만 알 뿐
+각 연동의 사정을 모른다.
 
 ```
-src/mirabox/
-  core/
-    device.py     HID 전송. 열기, 명령 프레임, 키 이미지 쓰기, 입력 읽기
-    render.py     카드 골격과 팔레트. 무엇을 그릴지는 모른다
-    registry.py   소스와 키 등록소
-    state.py      키에 넘기는 상태
-    shell.py      외부 명령 실행
-    config.py     키 배치, 밝기, 키 동작
-    daemon.py     루프. 필요한 소스만 켜고 그려서 보낸다
-    preview.py    기기 없이 렌더링 확인
-  integrations/
-    claude/       계정 한도, 컨텍스트, 비용, 캐시, 오늘 토큰, 소모 속도
-    google.py     Gmail, 캘린더
-    atlassian.py  Jira
-    gitlab.py     리뷰 대기 MR
-    buildhost.py  빌드 서버
-    actions.py    키를 눌렀을 때 할 일
-    appwatch.py   앞선 앱 감시 (NSWorkspace)
-    agent.py      로그인 자동 시작 (launchd)
-  ui/
-    app.py        조작 화면. 데몬을 워커 스레드로 품는다
+src/
+  main/                 Electron 메인. 데몬이 여기 산다
+    device.ts           HID 전송. 열기, 명령 프레임, 키 이미지, 입력 읽기
+    render.ts           카드 골격과 팔레트. 무엇을 그릴지는 모른다
+    registry.ts         소스와 키 등록소
+    config.ts           프로필, 칸 배치, 밝기, 키 동작
+    daemon.ts           루프. 필요한 소스만 켜고 그려서 보낸다
+    actions.ts          키를 눌렀을 때 할 일
+    shell.ts            외부 명령 실행. PATH 를 직접 세운다
+    appwatch.ts         앞선 앱 감시 (lsappinfo)
+    agent.ts            로그인 자동 시작 (launchd)
+    tray.ts             메뉴 막대 상주
+    index.ts            창, IPC, 네이티브 메뉴, 수명
+    integrations/       소스 7종, 키 16종
+  preload/index.ts      contextBridge 로 api 하나만 낸다
+  renderer/             React 조작 화면
+  shared/types.ts       메인과 렌더러가 함께 쓰는 타입
+  styles/tokens.css     디자인 토큰. 값의 유일한 출처
+tools/                  개발용 스크립트. 앱에 들어가지 않는다
 ```
 
 설정은 프로필 단위다. 칸 하나가 표시할 키(key), 그 키의 개별 설정(options),
-누를 때 할 일(action)을 함께 가진다.
+누를 때 할 일(action)을 함께 가진다. 설정 파일은
+`~/.config/mirabox/config.json` 이다.
 
 조작 화면과 데몬은 한 프로세스다. 기기는 한 프로세스만 점유할 수 있어서
 따로 두면 IPC 와 경합이 생긴다.
 
-화면은 macOS 기본 위젯에 맡긴다. 스타일시트를 씌우지 않아야 시스템 글꼴과
-밝은/어두운 모드를 따라간다. 직접 그리는 것은 보드 하나뿐인데 그건
-하드웨어를 옮긴 그림이라 어두운 베젤이 맞다.
-
-연동을 추가하려면 모듈을 하나 만들고 `integrations/__init__.py` 에 한 줄
-넣으면 된다. 소스는 `@source(이름, every=초)`, 키는
-`@key(이름, 라벨, 설명, sources=(...))` 로 등록한다. 데몬은 보드에 올라온
-키가 요구하는 소스만 켠다.
+연동을 추가하려면 모듈을 하나 만들고 `integrations/index.ts` 에 한 줄 넣으면
+된다. 소스는 `source(이름, 초, fetch)`, 키는 `key({name, label, summary,
+sources, options, render})` 로 등록한다. 데몬은 보드에 올라온 키가 요구하는
+소스만 켠다.
 
 ## 데이터 출처
 
@@ -99,7 +101,7 @@ src/mirabox/
 
 | 지표 | 출처 | 비고 |
 | --- | --- | --- |
-| Claude 5시간/7일 한도 | `~/.claude/usage-snapshot.json` | statusLine 훅이 떨군 payload의 `rate_limits` |
+| Claude 5시간/7일 한도 | `~/.claude/usage-snapshot.json` | statusLine 훅이 떨군 payload 의 `rate_limits` |
 | 컨텍스트, 비용, 캐시 적중률 | 같은 파일 | 세션별 값이라 마지막 갱신 세션 것이 잡힌다 |
 | 토큰 절대량 | `~/.claude/projects/**/*.jsonl` | 증분 파싱 필수. 전량은 1.1GB |
 | 안 읽은 메일 | `gws gmail users labels get` | OAuth 키링 |
@@ -108,85 +110,133 @@ src/mirabox/
 | 리뷰 대기 MR | GitLab REST + macOS 키체인 토큰 | |
 | 빌드 서버 | `ssh sphere-build` | 키 인증 |
 
-Claude 한도는 statusLine 훅에서만 나온다. `/usage`를 비대화형으로 불러도
-세션 요약만 나오고 한도는 없다. 훅 payload에 `rate_limits`가 들어오는 것은
+Claude 한도는 statusLine 훅에서만 나온다. `/usage` 를 비대화형으로 불러도
+세션 요약만 나오고 한도는 없다. 훅 payload 에 `rate_limits` 가 들어오는 것은
 Claude Code 2.1.80부터다.
 
 ## 디자인 규칙
 
+### 기기 화면
+
 실물 키를 책상 거리에서 읽는 것이 기준이다. 화면 목업 기준으로 만들면
-반드시 실패한다. 9~10px 글자는 기기에서 읽히지 않는다.
+반드시 실패한다. 작은 글자는 기기에서 읽히지 않는다.
 
 - 요소는 셋으로 제한한다. 상단 행, 주 수치, 하단 띠
-- 주 수치는 46px, **네 글자를 넘기지 않는다**. `122.7M`이 아니라 `123M`
-- 상단 행은 30px. 라벨은 짧게 (`5H`, `MR`, `BURN`)
-- 하단 띠는 12px. 비율이 있으면 게이지, 없으면 상태색 단색
-- 폭이 좁은 Helvetica Neue Condensed Bold를 쓴다. 같은 가로폭에 더 큰 글자가 들어간다
+- 95px 기준으로 상단 23px, 주 수치 35px, 보조 17px, 띠 높이 9px
+- 주 수치는 **네 글자를 넘기지 않는다**. `122.7M` 이 아니라 `123M`
+- 상단 라벨은 짧게 (`5H`, `MR`, `BURN`)
+- 하단 띠는 비율이 있으면 게이지, 없으면 상태색 단색
+- 폭이 좁은 `Avenir Next Condensed` 를 쓴다. 같은 가로폭에 더 큰 글자가 들어간다
 - 라벨과 보조값이 겹치면 보조값을 줄이거나 버린다. 라벨이 우선이다
 
 색은 의미로만 쓴다. 한도형(높을수록 나쁨)은 60% 주황, 85% 빨강. 적중률처럼
 높을수록 좋은 값은 반대로 뒤집는다.
 
+### 조작 화면
+
+Linear 에서 뽑은 토큰만 쓴다. 값은 전부 `src/styles/tokens.css` 에서 온다.
+컴포넌트 CSS 에서 새 색, 새 간격, 새 반경을 만들지 않는다.
+
+- 표면은 0에서 3까지 네 단계. 그림자와 그라디언트를 쓰지 않는다
+- 글자 굵기는 400, 510, 590 셋뿐이다
+- 반경은 4, 6, 12. 간격은 4, 8, 12, 16, 24, 32
+- 강조색은 하나다. 의미색(성공, 경고, 위험)은 강조색과 별개다
+- 경계선은 0.5px 헤어라인
+- **이모지를 쓰지 않는다.** 아이콘은 선으로 그린 SVG 뿐이다
+- 밝은 모드와 어두운 모드를 모두 만든다. 한쪽만 확인하고 끝내지 않는다
+
 ## 검증
 
 기기 없이 되는 것과 기기가 있어야 하는 것을 구분한다.
 
-파이썬 환경은 uv 로 관리한다. `pip` 를 직접 쓰지 않는다.
+```bash
+npm run typecheck        # 타입 검사
+npm run build            # 타입 검사 + 번들
+npm run dev              # 개발 실행 (기기 필요)
+npm run dist             # .app 패키징
+npx tsx tools/rot-check.ts       # 회전 방향 확인 (기기 불필요)
+npx tsx tools/registry-check.ts  # 등록소와 렌더링 확인 (기기 불필요)
+```
+
+화면 기록 권한이 없어도 창을 확인할 수 있다. 앱이 스스로 찍는다.
 
 ```bash
-uv sync                 # 의존성 설치
-uv run mirabox-preview  # 렌더링만 확인 (기기 불필요)
-uv run mirabox-probe    # 기기 통신 확인 (벤더 앱을 먼저 끈다)
-uv run mirabox-app      # 조작 화면 (데몬 포함)
-uv run mirabox          # 화면 없이 데몬만
+SHOT_PATH=/tmp/app.png SHOT_DELAY=12000 npx electron .
+SHOT_PATH=/tmp/dark.png SHOT_THEME=dark npx electron .
 ```
 
 렌더링 결과는 **반드시 눈으로 확인한다.** 좌표 계산만 믿으면 안 된다.
-실제 크기(126px)와 확대본을 함께 본다. 실제 크기에서 읽히지 않으면 실패다.
+실제 크기와 확대본을 함께 본다. 실제 크기에서 읽히지 않으면 실패다.
 
 ## 알려진 함정
+
+**그리기를 겹치면 안 된다.** `paint` 는 비동기다. 소스가 갱신될 때마다 그냥
+부르면 같은 HID 핸들에 쓰기가 뒤섞여 프레임이 깨지고 기기가
+`Cannot write to hid device` 로 거부한다. 진행 중이면 예약만 하고 끝나는 대로
+한 번 더 돈다. `Daemon.paint` 가 그 일을 한다.
+
+**입력은 비동기로 읽는다.** `readTimeout` 은 동기라 메인 프로세스를 멈춘다.
+`hid.on('data')` 를 쓴다.
 
 **부팅 화면은 덮어써야 사라진다.** 재연결 직후 기기는 로딩 화면을 띄운다.
 `CLE` 로는 지워지지 않고, 18칸을 모두 그려야 가려진다.
 
 **우측 끝 열(키 5, 11, 17)은 입력 보고가 오지 않았다.** 사이드 디스플레이
-터치 영역이라 본체 키와 다르게 동작하는 것으로 보인다. 추가 확인이 필요하다.
+터치 영역이라 본체 키와 다르게 동작하는 것으로 보인다. `device.ts` 의
+`unknownReports` 에 매핑되지 않은 리포트를 모아 둔다.
 
 **HID 열거에서 기기를 놓치기 쉽다.** 제품명 문자열이 비어 있어서 이름 기준
-검색으로는 안 잡힌다. 반드시 VID `0x5548`로 찾는다.
+검색으로는 안 잡힌다. 반드시 VID `0x5548` 로 찾는다.
 
-**원격 셸 명령의 인용.** `ssh host "cmd"`에서 큰따옴표를 쓰면 로컬 셸이 `$5`
-같은 것을 먼저 확장한다. 작은따옴표로 감싸되, 그러면 명령 안에 작은따옴표를
-쓸 수 없다. `awk '{print $5}'` 대신 `cut -d" " -f5`를 쓴다.
+**회전 방향을 헷갈리지 않는다.** 참고한 Rust 구현의 `rotate90` 은 시계
+방향이라 좌우 반전이 함께 붙어 있다. 여기서는 반시계 90도만 하고 반전은
+하지 않는다. `tools/rot-check.ts` 가 이걸 확인한다.
 
-**Pillow 좌표는 정수로 넘긴다.** 자간 때문에 소수가 섞이면 조용히 어긋난다.
+**좌표는 정수로 넘긴다.** 자간 때문에 소수가 섞이면 조용히 어긋난다.
 
-**한글은 대체 글꼴이 필요하다.** Helvetica Neue Condensed 에 한글 글리프가
-없어서 그냥 두면 두부가 된다. 글자에 비 ASCII 가 섞이면 Apple SD Gothic Neo
+**한글은 대체 글꼴이 필요하다.** `Avenir Next Condensed` 에 한글 글리프가
+없어서 그냥 두면 두부가 된다. 글자에 비 ASCII 가 섞이면 `Apple SD Gothic Neo`
 로 바꾼다. 그 글꼴은 세로로 커서 주 수치는 0.82 배로 줄여야 아래 띠와
 겹치지 않는다.
 
 **AppleScript 는 osacompile 로 문법을 검사한다.** min 과 max 연산자가 없고,
-앱 참조를 변수로 두면 두 단어 명령이 컴파일 시점에 해석되지 않는다.
-`osacompile -o /tmp/x.scpt -e '<스크립트>'` 로 확인한다.
+앱 참조를 변수로 두면 두 단어 명령이 컴파일 시점에 해석되지 않는다. 그래서
+미디어 명령은 `run script` 로 미룬다.
 
-**블로킹 모드에서 `read(timeout_ms=0)` 은 즉시 반환이 아니라 무한 대기다.**
-항상 1 이상을 넘긴다. 이걸로 한 번 멈췄다.
+```bash
+osacompile -o /tmp/x.scpt -e '<스크립트>'
+```
+
+**앞선 앱은 `lsappinfo` 로 본다.** AppleScript 의 System Events 를 쓰면 접근성
+권한을 묻는 창이 뜬다. `lsappinfo front` 와 `lsappinfo info -only name` 은
+권한 없이 된다.
+
+**Radix Select 는 빈 문자열 값을 거부한다.** `value=""` 인 항목은 조용히
+접히고 엉뚱한 항목이 골라진 것처럼 보인다. 안에서만 쓰는 자리표시자로 바꿔
+넘기고 밖으로 낼 때 되돌린다.
+
+**네이티브 모듈은 asar 밖에 둔다.** `node-hid` 와 `@napi-rs/canvas` 는 `.node`
+를 dlopen 한다. `electron-builder.yml` 의 `asarUnpack` 에 들어 있어야 패키징한
+앱에서 열린다.
 
 **HID 핸들을 쥔 프로세스를 SIGKILL 하지 않는다.** 기기가 잠겨 버려서 이후
 어떤 프로그램도 열지 못한다. 벤더 앱조차 `unable to open device, error =
 "Success"` 로 실패한다. 이 상태는 USB 를 물리적으로 뽑았다 꽂아야 풀린다.
-반드시 `close()` 로 끝내고, 장시간 실행에는 시그널 핸들러를 건다.
+반드시 `close()` 로 끝낸다. `before-quit` 에서 데몬을 세우고 나서 끝낸다.
 
 기기가 잠기면 벤더 앱은 열기에 실패한 뒤 페인팅에서 널을 만나 죽는다.
 관측된 크래시 루프의 메커니즘으로 보인다.
 
+**원격 셸 명령의 인용.** `ssh host "cmd"` 에서 큰따옴표를 쓰면 로컬 셸이 `$5`
+같은 것을 먼저 확장한다. 작은따옴표로 감싸되, 그러면 명령 안에 작은따옴표를
+쓸 수 없다. `awk '{print $5}'` 대신 `cut -d" " -f5` 를 쓴다.
+
 ## 문서 규칙
 
 - 이모지를 쓰지 않는다. 장식용 아이콘, 상태 표시 기호 포함
-- em dash(`—`), en dash를 em dash 대용으로, 가운뎃점(`·`)을 쓰지 않는다.
+- em dash(`—`), en dash 를 em dash 대용으로, 가운뎃점(`·`)을 쓰지 않는다.
   쉼표, 콜론, 괄호, 슬래시, 또는 문장을 나눠서 쓴다
-- 표와 admonition을 쓰고 평문으로 적는다
+- 표와 admonition 을 쓰고 평문으로 적는다
 
 ## 커밋
 

@@ -11,8 +11,9 @@
     "dev": "electron-vite dev",
     "build": "tsc --noEmit && electron-vite build",
     "start": "electron-vite preview",
-    "dist": "npm run build && electron-builder --mac --dir",
-    "typecheck": "tsc --noEmit"
+    "dist": "npm run build && npm run icon && electron-builder --mac --dir",
+    "typecheck": "tsc --noEmit",
+    "icon": "node tools/icon.mjs"
   },
   "devDependencies": {
     "@types/node": "22.19.1",
