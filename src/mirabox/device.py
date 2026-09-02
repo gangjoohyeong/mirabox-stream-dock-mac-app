@@ -40,13 +40,19 @@ KEY_IDS = [
 ]
 DEVICE_ID_TO_KEY = {dev: num for num, dev in enumerate(KEY_IDS)}
 
-# 오른쪽 끝 열은 본체 키가 아니라 사이드 디스플레이라 크기가 다르다
+# 오른쪽 끝 열(논리 키 5, 11, 17)은 본체 키가 아니라 사이드 디스플레이다
 SIDE_KEY_IDS = {0x10, 0x11, 0x12}
-KEY_SIZE = (85, 85)
-SIDE_SIZE = (80, 80)
 
-# 기기 패널이 90도 돌아가 있다
+# 펌웨어 V2.293S 는 프로토콜 v2 다. v1 은 전부 85x85 였다.
+KEY_SIZE = (95, 95)
+SIDE_SIZE = (82, 82)
+
+# 참고 구현은 "rot90 + mirror both" 로 적혀 있지만 그건 Rust image 크레이트
+# 기준이다. 거기서 rotate90 은 시계 방향이고, 시계 90도에 180도 반전을 더하면
+# 결국 반시계 90도가 된다. PIL 의 rotate(90) 은 처음부터 반시계라서 이 한 번이
+# 그 조합과 정확히 같다. 여기에 미러를 또 걸면 180도 뒤집힌다.
 ROTATE = 90
+MIRROR_BOTH = False
 
 
 class DeviceError(RuntimeError):
@@ -72,6 +78,8 @@ def encode_key_image(image: Image.Image, key: int, quality: int = 90) -> bytes:
         image = image.resize(target, Image.LANCZOS)
     if ROTATE:
         image = image.rotate(ROTATE, expand=True)
+    if MIRROR_BOTH:
+        image = image.transpose(Image.ROTATE_180)
     buf = io.BytesIO()
     image.convert("RGB").save(buf, format="JPEG", quality=quality)
     return buf.getvalue()

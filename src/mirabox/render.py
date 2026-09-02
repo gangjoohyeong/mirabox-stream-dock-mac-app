@@ -6,9 +6,9 @@
     주 수치    가운데. 네 글자를 넘기지 않는다
     하단 띠    비율이 있으면 게이지, 없으면 상태색 단색
 
-기기 키는 85x85 다. 벤더 앱은 126x126 을 받아 축소했지만 여기서는 네이티브
-크기로 직접 그린다. 축소가 없어 더 선명하다. 치수는 126 기준 설계를
-0.675 배 한 값이다.
+기기 키는 95x95 이고 오른쪽 끝 열만 82x82 다. 벤더 앱은 126x126 을 받아
+축소했지만 여기서는 네이티브 크기로 직접 그린다. 축소가 없어 더 선명하다.
+치수는 126 기준 설계를 0.754 배 한 값이다.
 
 판독 기준은 화면이 아니라 실물이다. 책상 거리에서 읽히지 않으면 실패다.
 """
@@ -34,11 +34,11 @@ TRACK = (46, 52, 61)
 OK = (69, 179, 122)
 DANGER = (228, 91, 78)
 
-PAD = 7
-TOP_BASELINE = 23
-VALUE_BASELINE = 65
-BAND_Y = 71
-BAND_H = 8
+PAD = 8
+TOP_BASELINE = 26
+VALUE_BASELINE = 72
+BAND_Y = 80
+BAND_H = 9
 
 _fonts: dict[int, ImageFont.FreeTypeFont] = {}
 
@@ -49,9 +49,9 @@ def font(size: int) -> ImageFont.FreeTypeFont:
     return _fonts[size]
 
 
-TOP_SIZE = 20
-VALUE_SIZE = 31
-SMALL_SIZE = 15
+TOP_SIZE = 23
+VALUE_SIZE = 35
+SMALL_SIZE = 17
 
 
 # ---------- 값 표기 ----------
