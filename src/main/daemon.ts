@@ -119,7 +119,7 @@ export class Daemon extends EventEmitter<DaemonEvents> {
   start(): void {
     this.startSources()
     this.watcher.start()
-    void this.connect()
+    this.connect().catch((error) => this.onDeviceLost(error))
   }
 
   async stop(): Promise<void> {
@@ -301,13 +301,22 @@ export class Daemon extends EventEmitter<DaemonEvents> {
 
     this.dock = dock
     this.sent.clear()
-    dock.connect()
-    dock.startReading(
-      (event) => {
-        if (event.pressed) this.onPress(event.key)
-      },
-      (error) => this.onDeviceLost(error),
-    )
+
+    // 여는 데 성공해도 첫 명령이 튕길 수 있다. 앞 프로세스가 아직 핸들을
+    // 놓지 않았을 때가 그렇다. 여기서 안 잡으면 처리되지 않은 거부로 새고,
+    // 재연결도 걸리지 않은 채 영영 '기기를 찾는 중' 에 멈춘다.
+    try {
+      dock.connect()
+      dock.startReading(
+        (event) => {
+          if (event.pressed) this.onPress(event.key)
+        },
+        (error) => this.onDeviceLost(error),
+      )
+    } catch (error) {
+      this.onDeviceLost(error)
+      return
+    }
     this.setStatus(true, '기기 연결됨')
 
     // 부팅 로딩 화면은 CLE 로 지워지지 않는다. 전부 덮어써야 사라진다.
@@ -333,7 +342,7 @@ export class Daemon extends EventEmitter<DaemonEvents> {
     if (this.reconnectTimer || this.stopping) return
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
-      void this.connect()
+      this.connect().catch((error) => this.onDeviceLost(error))
     }, RECONNECT_MS)
   }
 
