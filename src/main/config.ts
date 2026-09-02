@@ -18,10 +18,17 @@ import type { Config, Profile, Slot } from '../shared/types.js'
 export const CONFIG_PATH = join(homedir(), '.config', 'mirabox', 'config.json')
 export const DEFAULT_PROFILE = '기본'
 
+/**
+ * 첫 실행 배치.
+ *
+ * 줄마다 성격을 맞춘다. 첫 줄은 Claude 한도와 세션, 둘째 줄은 사람과 일,
+ * 셋째 줄은 이 맥과 바깥. 사이드 열(5, 11, 17)에는 오래 보아도 눈이 편한
+ * 것을 둔다.
+ */
 const DEFAULT_KEYS: (string | null)[] = [
-  'five', 'seven', 'ctx', 'cost', 'cache', null,
-  'today', 'burn', 'mail', 'cal', 'jira', null,
-  'mr', 'build', null, null, null, null,
+  'five', 'seven', 'ctx', 'cost', 'cache', 'clock',
+  'today', 'burn', 'mail', 'cal', 'jira', 'weather',
+  'mr', 'build', 'cpu', 'mem', 'disk', 'date',
 ]
 
 const emptySlot = (): Slot => ({ key: null, options: {}, action: { kind: 'none', value: '' } })
