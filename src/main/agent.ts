@@ -29,6 +29,11 @@ async function launchctl(...args: string[]): Promise<boolean> {
   }
 }
 
+export const BACKGROUND_FLAG = '--background'
+
+/** launchd 가 띄운 것인지. 그렇다면 창을 열지 않는다. */
+export const startedInBackground = () => process.argv.includes(BACKGROUND_FLAG)
+
 export const isPackaged = () => app.isPackaged
 export const isInstalled = () => existsSync(PLIST_PATH)
 export const isRunning = () => launchctl('print', `${domain()}/${LABEL}`)
@@ -36,7 +41,10 @@ export const isRunning = () => launchctl('print', `${domain()}/${LABEL}`)
 function plist(): string {
   const escape = (text: string) =>
     text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const args = [app.getPath('exe')].map((a) => `      <string>${escape(a)}</string>`).join('\n')
+  // --background 를 붙여 로그인 직후에는 창 없이 메뉴 막대로만 뜨게 한다
+  const args = [app.getPath('exe'), BACKGROUND_FLAG]
+    .map((a) => `      <string>${escape(a)}</string>`)
+    .join('\n')
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -56,6 +64,8 @@ ${args}
 }
 
 export async function install(): Promise<void> {
+  // 개발 중에는 electron 실행 파일이 등록돼 로그인 때 빈 앱이 뜬다
+  if (!app.isPackaged) throw new Error('패키징한 앱에서만 등록할 수 있다')
   mkdirSync(LOG_DIR, { recursive: true })
   mkdirSync(dirname(PLIST_PATH), { recursive: true })
   writeFileSync(PLIST_PATH, plist(), 'utf8')

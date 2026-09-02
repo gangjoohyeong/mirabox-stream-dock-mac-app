@@ -21,15 +21,23 @@ import { spawnDetached } from './shell.js'
 import type { Config, DeviceStatus, SourceStatus } from '../shared/types.js'
 
 const RECONNECT_MS = 3000
+/** 쓰기가 한 번 튕겼다고 연결을 버리지 않는다. 이만큼 쉬고 다시 해 본다. */
+const RETRY_MS = 400
+const MAX_RETRIES = 2
 
-/** 필요한 소스만 각자 주기로 모은다. */
+/**
+ * 필요한 소스만 각자 주기로 모은다.
+ *
+ * 상태는 데몬이 들고 있고 여기서는 채우기만 한다. 칸 하나를 바꿨다고 모아 둔
+ * 값이 날아가면 기기가 몇 초 동안 빈 화면이 된다.
+ */
 class Collector {
   private timers: NodeJS.Timeout[] = []
   private stopped = false
-  readonly state: State = emptyState()
 
   constructor(
     private readonly wanted: Set<string>,
+    private readonly state: State,
     private readonly onUpdate: () => void,
   ) {}
 
@@ -90,6 +98,7 @@ export class Daemon extends EventEmitter<DaemonEvents> {
   private collector: Collector | null = null
   private readonly watcher = new AppWatcher((app) => this.onFrontApp(app))
   private sent = new Map<number, string>()
+  private readonly collected: State = emptyState()
   private paintTimer: NodeJS.Timeout | null = null
   private reconnectTimer: NodeJS.Timeout | null = null
   private stopping = false
@@ -134,7 +143,7 @@ export class Daemon extends EventEmitter<DaemonEvents> {
   private startSources(): void {
     const needed = this.neededSources()
     if (needed.size === 0) return
-    this.collector = new Collector(needed, () => this.requestPaint())
+    this.collector = new Collector(needed, this.collected, () => this.requestPaint())
     this.collector.start()
   }
 
@@ -143,13 +152,14 @@ export class Daemon extends EventEmitter<DaemonEvents> {
     this.collector = null
   }
 
+  /** 보드가 바뀌어 필요한 소스 목록이 달라졌을 때 부른다. 모은 값은 지키고 주기만 새로 건다. */
   restartSources(): void {
     this.stopSources()
     this.startSources()
   }
 
   get state(): State {
-    return this.collector?.state ?? emptyState()
+    return this.collected
   }
 
   sourceStatus(): SourceStatus[] {
@@ -232,23 +242,39 @@ export class Daemon extends EventEmitter<DaemonEvents> {
     await warmImages(profile.slots.map((s) => s.options.path ?? ''))
 
     const state = this.state
-    let sent = 0
-    try {
-      this.dock.setBrightness(this.config.brightness)
-      for (let index = 0; index < KEY_COUNT; index++) {
-        const jpeg = encodeKey(this.renderSlot(index, state))
-        const digest = `${jpeg.length}:${jpeg.subarray(0, 24).toString('hex')}`
-        if (!force && this.sent.get(index) === digest) continue
-        this.dock.setKeyImage(index, jpeg)
-        this.sent.set(index, digest)
-        sent += 1
+    // 한 번에 많이 밀어 넣으면 기기가 쓰기를 거부한다. 몇 번 쉬고 다시 해 본다.
+    for (let attempt = 0; ; attempt++) {
+      if (!this.dock?.isOpen) return
+      try {
+        this.writeFrame(state, force || attempt > 0)
+        this.emit('painted')
+        return
+      } catch (error) {
+        if (attempt >= MAX_RETRIES || this.stopping) {
+          this.onDeviceLost(error)
+          return
+        }
+        // 중간에 끊겼으면 기기와 내가 아는 그림이 어긋난다. 다음엔 전부 보낸다
+        this.sent.clear()
+        await new Promise((resolve) => setTimeout(resolve, RETRY_MS))
       }
-      if (sent > 0) this.dock.refresh()
-    } catch (error) {
-      this.onDeviceLost(error)
-      return
     }
-    this.emit('painted')
+  }
+
+  private writeFrame(state: State, force: boolean): void {
+    const dock = this.dock
+    if (!dock) return
+    let sent = 0
+    dock.setBrightness(this.config.brightness)
+    for (let index = 0; index < KEY_COUNT; index++) {
+      const jpeg = encodeKey(this.renderSlot(index, state))
+      const digest = `${jpeg.length}:${jpeg.subarray(0, 24).toString('hex')}`
+      if (!force && this.sent.get(index) === digest) continue
+      dock.setKeyImage(index, jpeg)
+      this.sent.set(index, digest)
+      sent += 1
+    }
+    if (sent > 0) dock.refresh()
   }
 
   // ---------- 기기 ----------
@@ -293,7 +319,9 @@ export class Daemon extends EventEmitter<DaemonEvents> {
     this.dock = null
     if (this.paintTimer) clearInterval(this.paintTimer)
     this.paintTimer = null
-    this.setStatus(false, error instanceof Error ? error.message : '연결이 끊겼다')
+    const message = error instanceof Error ? error.message : '연결이 끊겼다'
+    console.error('기기 연결 끊김:', message)
+    this.setStatus(false, message)
     this.scheduleReconnect()
   }
 

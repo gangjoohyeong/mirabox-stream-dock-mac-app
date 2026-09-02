@@ -85,7 +85,7 @@ key({
   render: (index, _state, options) =>
     card(index, {
       label: (options.title ?? '').slice(0, 8),
-      value: (options.value ?? '').slice(0, 6) || '—',
+      value: (options.value ?? '').slice(0, 6) || '--',
     }),
 })
 

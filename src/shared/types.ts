@@ -67,6 +67,12 @@ export interface Snapshot {
   runningApps: string[]
 }
 
+/** 로그인 자동 시작 등록 결과. 실패하면 이유를 화면에 띄운다. */
+export interface LoginResult {
+  ok: boolean
+  message: string
+}
+
 export interface MediaChoice {
   value: string
   label: string

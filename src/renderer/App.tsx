@@ -36,7 +36,15 @@ export function App() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [naming, setNaming] = useState<'new' | 'rename' | null>(null)
   const [showSkeleton, setShowSkeleton] = useState(false)
+  const [loginError, setLoginError] = useState('')
   const boardRef = useRef<HTMLDivElement>(null)
+
+  // 개발 실행에서는 등록해도 소용이 없어 메인이 거절한다. 이유를 그대로 보인다
+  const toggleLogin = useCallback(async () => {
+    const current = await window.api.getState()
+    const result = await window.api.setRunAtLogin(!current.runAtLogin)
+    setLoginError(result.ok ? '' : result.message)
+  }, [])
 
   // 200ms 미만이면 아무것도 보여주지 않는다
   useEffect(() => {
@@ -121,7 +129,8 @@ export function App() {
       list.push({
         id: `set-${entry.name}`,
         group: '이 칸에 표시',
-        label: `${entry.label}  ${entry.summary}`,
+        label: entry.label,
+        detail: entry.summary,
         run: () => void window.api.setSlot(selected, { key: entry.name }),
       })
     }
@@ -148,11 +157,11 @@ export function App() {
         id: 'login',
         group: '시스템',
         label: state.runAtLogin ? '로그인 시 자동 시작 끄기' : '로그인 시 자동 시작 켜기',
-        run: () => void window.api.setRunAtLogin(!state.runAtLogin),
+        run: () => void toggleLogin(),
       },
     )
     return list
-  }, [state, meta, profile, selected])
+  }, [state, meta, profile, selected, toggleLogin])
 
   if (!state || !meta) {
     return (
@@ -412,13 +421,11 @@ export function App() {
 
           <div className="toggle-row">
             <span>로그인할 때 자동 시작</span>
-            <button
-              className="button"
-              onClick={() => void window.api.setRunAtLogin(!state.runAtLogin)}
-            >
+            <button className="button" onClick={toggleLogin}>
               {state.runAtLogin ? '끄기' : '켜기'}
             </button>
           </div>
+          {loginError ? <p className="hint error">{loginError}</p> : null}
         </aside>
       </div>
 

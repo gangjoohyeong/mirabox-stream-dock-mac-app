@@ -114,10 +114,17 @@ function push(): void {
   void snapshot().then((data) => window?.webContents.send('state:changed', data))
 }
 
-function persist(options: { restartSources?: boolean; repaint?: boolean } = {}): void {
+/**
+ * 설정을 저장하고 다시 그린다.
+ *
+ * `force` 는 18칸을 전부 다시 보낸다. 칸 하나를 고쳤을 뿐인데 전량을 보내면
+ * 입력창에 글자를 칠 때마다 기기가 전송에 잠긴다. 바뀐 칸만 나가게 두고,
+ * 프로필이 통째로 바뀔 때만 force 를 쓴다.
+ */
+function persist(options: { restartSources?: boolean; force?: boolean } = {}): void {
   configModule.save(daemon!.config)
   if (options.restartSources) daemon!.restartSources()
-  daemon!.requestPaint(options.repaint ?? true)
+  daemon!.requestPaint(options.force ?? false)
   push()
 }
 
@@ -147,12 +154,12 @@ function registerIpc(): void {
 
   ipcMain.handle('brightness:set', (_event, value: number) => {
     daemon!.config.brightness = value
-    persist({ repaint: false })
+    persist()
   })
 
   ipcMain.handle('profile:switch', (_event, name: string) => {
     daemon!.switchProfile(name)
-    persist()
+    persist({ force: true })
   })
 
   ipcMain.handle('profile:add', (_event, name: string) => {
@@ -160,7 +167,7 @@ function registerIpc(): void {
     if (config.profiles.some((p) => p.name === name)) return false
     config.profiles.push(configModule.defaultProfile(name))
     config.active = name
-    persist({ restartSources: true })
+    persist({ restartSources: true, force: true })
     return true
   })
 
@@ -177,7 +184,7 @@ function registerIpc(): void {
     const current = configModule.profileOf(config)
     config.profiles = config.profiles.filter((p) => p !== current)
     config.active = config.profiles[0].name
-    persist({ restartSources: true })
+    persist({ restartSources: true, force: true })
     return true
   })
 
@@ -187,14 +194,20 @@ function registerIpc(): void {
   })
 
   ipcMain.handle('login:set', async (_event, enabled: boolean) => {
-    if (enabled) await agent.install()
-    else await agent.uninstall()
+    try {
+      if (enabled) await agent.install()
+      else await agent.uninstall()
+    } catch (error) {
+      push()
+      return { ok: false, message: error instanceof Error ? error.message : String(error) }
+    }
     push()
-    return agent.isInstalled()
+    return { ok: agent.isInstalled() === enabled, message: '' }
   })
 
   ipcMain.handle('file:pick', async () => {
-    const result = await dialog.showOpenDialog(window!, {
+    const parent = window && !window.isDestroyed() ? window : undefined
+    const result = await dialog.showOpenDialog(parent as never, {
       properties: ['openFile'],
       filters: [{ name: '그림', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] }],
     })
@@ -263,11 +276,12 @@ app.whenReady().then(async () => {
     onQuit: () => app.quit(),
     onProfile: (name) => {
       daemon!.switchProfile(name)
-      persist()
+      persist({ force: true })
     },
   })
   menuBar.start()
-  window = createWindow()
+  // 로그인 자동 시작이면 창을 열지 않는다. 켤 때마다 창이 튀어나오면 안 된다
+  if (!agent.startedInBackground()) window = createWindow()
   daemon.start()
   push()
 
@@ -277,6 +291,16 @@ app.whenReady().then(async () => {
       nativeTheme.themeSource = process.env.SHOT_THEME
     }
     setTimeout(async () => {
+      // 팔레트처럼 조작해야 열리는 화면도 찍을 수 있게 한다
+      if (process.env.SHOT_PALETTE) {
+        window!.webContents.send('menu:palette')
+        await new Promise((resolve) => setTimeout(resolve, 600))
+      }
+      // 화면 안을 눌러야 나오는 것도 찍는다. 개발용 통로다
+      if (process.env.SHOT_SCRIPT) {
+        await window!.webContents.executeJavaScript(process.env.SHOT_SCRIPT)
+        await new Promise((resolve) => setTimeout(resolve, 800))
+      }
       const image = await window!.webContents.capturePage()
       writeFileSync(process.env.SHOT_PATH!, image.toPNG())
       console.log('캡처:', process.env.SHOT_PATH)

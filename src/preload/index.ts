@@ -1,7 +1,7 @@
 /** 렌더러가 쓸 수 있는 것만 노출한다. 노드 접근은 열지 않는다. */
 
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Action, MediaChoice, KeyInfo, Slot, Snapshot } from '../shared/types.js'
+import type { Action, KeyInfo, LoginResult, MediaChoice, Slot, Snapshot } from '../shared/types.js'
 
 export interface Meta {
   keys: KeyInfo[]
@@ -26,7 +26,8 @@ const api = {
   removeProfile: (): Promise<boolean> => ipcRenderer.invoke('profile:remove'),
   setProfileApp: (app: string): Promise<void> => ipcRenderer.invoke('profile:setApp', app),
 
-  setRunAtLogin: (enabled: boolean): Promise<boolean> => ipcRenderer.invoke('login:set', enabled),
+  setRunAtLogin: (enabled: boolean): Promise<LoginResult> =>
+    ipcRenderer.invoke('login:set', enabled),
   pickFile: (): Promise<string | null> => ipcRenderer.invoke('file:pick'),
 
   onChanged: (handler: (state: Snapshot) => void) => {

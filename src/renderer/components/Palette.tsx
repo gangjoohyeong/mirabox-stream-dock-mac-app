@@ -12,6 +12,8 @@ export interface PaletteCommand {
   id: string
   group: string
   label: string
+  /** 이름 뒤에 흐리게 붙는 설명. 이름과 같은 농도로 두면 둘 다 안 읽힌다. */
+  detail?: string
   shortcut?: string
   run: () => void
 }
@@ -45,13 +47,14 @@ export function Palette({ open, onOpenChange, commands }: Props) {
                     {items.map((command) => (
                       <Command.Item
                         key={command.id}
-                        value={`${group} ${command.label}`}
+                        value={`${group} ${command.label} ${command.detail ?? ''}`}
                         onSelect={() => {
                           command.run()
                           onOpenChange(false)
                         }}
                       >
-                        {command.label}
+                        <span className="name">{command.label}</span>
+                        {command.detail ? <span className="detail">{command.detail}</span> : null}
                         {command.shortcut ? <kbd className="shortcut">{command.shortcut}</kbd> : null}
                       </Command.Item>
                     ))}

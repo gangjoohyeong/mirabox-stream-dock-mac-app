@@ -326,10 +326,13 @@ kbd {
   font-size: var(--text-sm);
   color: var(--fg-tertiary);
 }
-.field .hint {
+.hint {
   font-size: var(--text-xs);
   color: var(--fg-tertiary);
   line-height: var(--leading-normal);
+}
+.hint.error {
+  color: var(--status-blocked);
 }
 .field-row {
   display: flex;
@@ -502,8 +505,8 @@ kbd {
 }
 .palette [cmdk-item] {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  align-items: baseline;
+  gap: var(--space-2);
   padding: 6px var(--space-3);
   border-radius: var(--radius-sm);
   color: var(--fg-secondary);
@@ -512,6 +515,19 @@ kbd {
 .palette [cmdk-item][data-selected='true'] {
   background: var(--fill-active);
   color: var(--fg);
+}
+.palette [cmdk-item] .name {
+  flex: none;
+  color: var(--fg);
+}
+.palette [cmdk-item] .detail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-tertiary);
+  font-size: var(--text-sm);
 }
 .palette [cmdk-item] .shortcut {
   margin-left: auto;
