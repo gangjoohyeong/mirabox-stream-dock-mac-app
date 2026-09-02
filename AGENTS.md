@@ -72,7 +72,7 @@ src/
     shell.ts            외부 명령 실행. PATH 를 직접 세운다
     appwatch.ts         앞선 앱 감시 (lsappinfo)
     agent.ts            로그인 자동 시작 (launchd)
-    tray.ts             메뉴 막대 상주
+    tray.ts             메뉴 막대 상주. 창을 닫아도 데몬은 돈다
     index.ts            창, IPC, 네이티브 메뉴, 수명
     integrations/       소스 7종, 키 16종
   preload/index.ts      contextBridge 로 api 하나만 낸다
@@ -163,7 +163,12 @@ npx tsx tools/registry-check.ts  # 등록소와 렌더링 확인 (기기 불필�
 ```bash
 SHOT_PATH=/tmp/app.png SHOT_DELAY=12000 npx electron .
 SHOT_PATH=/tmp/dark.png SHOT_THEME=dark npx electron .
+SHOT_PATH=/tmp/p.png SHOT_PALETTE=1 npx electron .
+SHOT_PATH=/tmp/x.png SHOT_SCRIPT='window.api.setSlot(0,{key:"clock"})' npx electron .
 ```
+
+`SHOT_SCRIPT` 는 찍기 직전에 렌더러에서 돌린다. 눌러야 열리는 화면이나
+설정을 바꾼 뒤 모습을 확인할 때 쓴다.
 
 렌더링 결과는 **반드시 눈으로 확인한다.** 좌표 계산만 믿으면 안 된다.
 실제 크기와 확대본을 함께 본다. 실제 크기에서 읽히지 않으면 실패다.
@@ -174,6 +179,14 @@ SHOT_PATH=/tmp/dark.png SHOT_THEME=dark npx electron .
 부르면 같은 HID 핸들에 쓰기가 뒤섞여 프레임이 깨지고 기기가
 `Cannot write to hid device` 로 거부한다. 진행 중이면 예약만 하고 끝나는 대로
 한 번 더 돈다. `Daemon.paint` 가 그 일을 한다.
+
+**칸 하나를 고쳤다고 18칸을 다시 보내지 않는다.** `requestPaint(true)` 는
+보낸 그림 기록을 지워 전량을 다시 밀어 넣는다. 값 입력창에 글자를 칠 때마다
+그러면 기기가 전송에 잠긴다. 전량 전송은 프로필이 통째로 바뀔 때와 재연결
+직후에만 쓴다.
+
+**모은 값은 데몬이 들고 있는다.** 보드가 바뀌어 수집기를 다시 만들 때 값까지
+버리면 기기가 몇 초 동안 빈 화면이 된다.
 
 **입력은 비동기로 읽는다.** `readTimeout` 은 동기라 메인 프로세스를 멈춘다.
 `hid.on('data')` 를 쓴다.

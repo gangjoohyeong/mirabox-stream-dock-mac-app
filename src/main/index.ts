@@ -55,8 +55,8 @@ function createWindow(): BrowserWindow {
     win.hide()
   })
   // 네이티브 앱이 하는 일이다. 비활성일 때 색을 죽인다.
-  win.on('blur', () => win.webContents.send('window:active', false))
-  win.on('focus', () => win.webContents.send('window:active', true))
+  win.on('blur', () => !win.isDestroyed() && win.webContents.send('window:active', false))
+  win.on('focus', () => !win.isDestroyed() && win.webContents.send('window:active', true))
   win.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
     return { action: 'deny' }
@@ -68,6 +68,11 @@ function createWindow(): BrowserWindow {
     void win.loadFile(join(dirname, '../renderer/index.html'))
   }
   return win
+}
+
+/** 창이 살아 있을 때만 보낸다. 메뉴 막대에만 남아 있는 동안에도 데몬은 돈다. */
+function send(channel: string, payload?: unknown): void {
+  if (window && !window.isDestroyed()) window.webContents.send(channel, payload)
 }
 
 function showWindow(): void {
@@ -111,7 +116,7 @@ function push(): void {
     current.config.profiles.map((profile) => profile.name),
     current.config.active,
   )
-  void snapshot().then((data) => window?.webContents.send('state:changed', data))
+  void snapshot().then((data) => send('state:changed', data))
 }
 
 /**
@@ -165,7 +170,7 @@ function registerIpc(): void {
   ipcMain.handle('profile:add', (_event, name: string) => {
     const config = daemon!.config
     if (config.profiles.some((p) => p.name === name)) return false
-    config.profiles.push(configModule.defaultProfile(name))
+    config.profiles.push(configModule.emptyProfile(name))
     config.active = name
     persist({ restartSources: true, force: true })
     return true
@@ -228,15 +233,15 @@ function buildMenu(): void {
           {
             label: '새 프로필',
             accelerator: 'CmdOrCtrl+N',
-            click: () => window?.webContents.send('menu:newProfile'),
+            click: () => send('menu:newProfile'),
           },
           {
             label: '이름 바꾸기',
-            click: () => window?.webContents.send('menu:renameProfile'),
+            click: () => send('menu:renameProfile'),
           },
           {
             label: '프로필 삭제',
-            click: () => window?.webContents.send('menu:removeProfile'),
+            click: () => send('menu:removeProfile'),
           },
         ],
       },
@@ -246,7 +251,7 @@ function buildMenu(): void {
           {
             label: '명령 팔레트',
             accelerator: 'CmdOrCtrl+K',
-            click: () => window?.webContents.send('menu:palette'),
+            click: () => send('menu:palette'),
           },
           { type: 'separator' },
           { role: 'reload' },
@@ -293,7 +298,7 @@ app.whenReady().then(async () => {
     setTimeout(async () => {
       // 팔레트처럼 조작해야 열리는 화면도 찍을 수 있게 한다
       if (process.env.SHOT_PALETTE) {
-        window!.webContents.send('menu:palette')
+        send('menu:palette')
         await new Promise((resolve) => setTimeout(resolve, 600))
       }
       // 화면 안을 눌러야 나오는 것도 찍는다. 개발용 통로다

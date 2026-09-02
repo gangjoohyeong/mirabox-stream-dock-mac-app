@@ -40,8 +40,14 @@ function defaultSlots(): Slot[] {
   return DEFAULT_KEYS.map((name) => ({ ...emptySlot(), key: name }))
 }
 
+/** 첫 실행에 만드는 프로필. 쓸 만한 배치가 이미 들어 있다. */
 export function defaultProfile(name = DEFAULT_PROFILE): Profile {
   return { name, slots: defaultSlots(), app: '' }
+}
+
+/** 사용자가 직접 만드는 프로필. 채울 자리만 준다. */
+export function emptyProfile(name: string): Profile {
+  return { name, slots: Array.from({ length: KEY_COUNT }, emptySlot), app: '' }
 }
 
 function normalizeProfile(profile: Profile): Profile {
