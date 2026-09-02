@@ -117,10 +117,14 @@ class Board(QFrame):
         return next((t.index for t in self.tiles if t.isChecked()), 0)
 
     def paintEvent(self, _event) -> None:
+        # 어두운 배경에서는 베젤이 창에 묻히므로 옅은 테두리를 둔다
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setBrush(QColor(23, 25, 29))
-        painter.setPen(Qt.NoPen)
+        pen = painter.pen()
+        pen.setColor(QColor(255, 255, 255, 38))
+        pen.setWidth(1)
+        painter.setPen(pen)
         painter.drawRoundedRect(self.rect().adjusted(0, 0, -1, -1), 18, 18)
 
 
@@ -137,6 +141,7 @@ class MainWindow(QMainWindow):
         self.cfg = cfg
         self.setWindowTitle("Stream Dock")
         self._option_widgets: dict[str, QWidget] = {}
+        self._option_rows: list[int] = []
 
         self.bridge = Bridge()
         self.bridge.status.connect(self._on_status)
@@ -222,11 +227,19 @@ class MainWindow(QMainWindow):
         self.agent_action.triggered.connect(self._toggle_agent)
         system.addAction(self.agent_action)
 
+    def _separator(self) -> QFrame:
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        return line
+
     def _build_inspector(self) -> QWidget:
+        """라벨 열이 어긋나지 않도록 한 폼에 다 넣고 구분선으로 나눈다."""
         panel = QWidget()
+        panel.setMinimumWidth(330)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(14)
+        layout.setSpacing(12)
 
         self.title = QLabel()
         title_font = QFont(self.font())
@@ -235,62 +248,68 @@ class MainWindow(QMainWindow):
         self.title.setFont(title_font)
         layout.addWidget(self.title)
 
-        form = QFormLayout()
-        form.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        form.setSpacing(10)
+        self.form = QFormLayout()
+        self.form.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+        self.form.setSpacing(10)
 
         self.key_combo = QComboBox()
         self.key_combo.addItem("빈 칸", None)
         for name, entry in KEYS.items():
             self.key_combo.addItem(f"{entry.label}  {entry.summary}", name)
         self.key_combo.currentIndexChanged.connect(self._on_key_changed)
-        form.addRow("표시", self.key_combo)
-        layout.addLayout(form)
+        self.form.addRow("표시", self.key_combo)
 
-        # 키마다 다른 개별 설정이 여기에 동적으로 들어간다
-        self.options_form = QFormLayout()
-        self.options_form.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.options_form.setSpacing(10)
-        layout.addLayout(self.options_form)
-
-        action_form = QFormLayout()
-        action_form.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        action_form.setSpacing(10)
+        # 키마다 다른 개별 설정이 이 자리 뒤에 동적으로 끼어든다
+        self._options_anchor = self.form.rowCount()
 
         self.action_combo = QComboBox()
         for kind, label in actions_module.LABELS.items():
             self.action_combo.addItem(label, kind)
         self.action_combo.currentIndexChanged.connect(self._on_action_kind)
-        action_form.addRow("누를 때", self.action_combo)
+        self.form.addRow("누를 때", self.action_combo)
 
         self.action_value = QLineEdit()
         self.action_value.editingFinished.connect(self._on_action_value)
-        action_form.addRow("", self.action_value)
+        self._base_action_row = self.form.rowCount()
+        self.action_row = self._base_action_row
+        self.form.addRow("값", self.action_value)
 
         self.media_combo = QComboBox()
         for value, label in actions_module.MEDIA_CHOICES:
             self.media_combo.addItem(label, value)
         self.media_combo.currentIndexChanged.connect(self._on_action_value)
-        action_form.addRow("", self.media_combo)
-        layout.addLayout(action_form)
+        self._base_media_row = self.form.rowCount()
+        self.media_row = self._base_media_row
+        self.form.addRow("동작", self.media_combo)
 
-        bind_form = QFormLayout()
-        bind_form.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.form.addRow(self._separator())
+
         self.app_combo = QComboBox()
-        self.app_combo.setEditable(True)
         self.app_combo.addItem("연결 안 함", "")
         for name in appwatch.running_apps():
             self.app_combo.addItem(name, name)
         self.app_combo.currentIndexChanged.connect(self._on_app_bind)
-        bind_form.addRow("이 프로필을 쓸 앱", self.app_combo)
-        layout.addLayout(bind_form)
+        self.form.addRow("이 프로필을 쓸 앱", self.app_combo)
+        layout.addLayout(self.form)
 
         self.hint = QLabel()
         self.hint.setWordWrap(True)
         self.hint.setEnabled(False)
+        # 줄바꿈 라벨은 폭이 정해져야 높이가 나온다. 안 그러면 글자가 겹쳐 그려진다.
+        self.hint.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        self.hint.setMinimumHeight(44)
+        self.hint.setAlignment(Qt.AlignTop)
         layout.addWidget(self.hint)
         layout.addStretch(1)
         return panel
+
+    def _set_row_visible(self, row: int, visible: bool) -> None:
+        """폼의 한 줄을 라벨까지 함께 감춘다."""
+        for role in (QFormLayout.LabelRole, QFormLayout.FieldRole):
+            item = self.form.itemAt(row, role)
+            if item and item.widget():
+                item.widget().setVisible(visible)
 
     # ---------- 프로필 ----------
 
@@ -400,31 +419,43 @@ class MainWindow(QMainWindow):
         self._sync_action_widgets(slot.action)
 
     def _rebuild_options(self, slot: config_module.Slot) -> None:
-        while self.options_form.rowCount():
-            self.options_form.removeRow(0)
+        for row in reversed(self._option_rows):
+            self.form.removeRow(row)
+        self._option_rows.clear()
         self._option_widgets.clear()
 
         entry = KEYS.get(slot.key) if slot.key else None
         if not entry:
             return
-        for option in entry.options:
+        for offset, option in enumerate(entry.options):
             field = QLineEdit(str(slot.options.get(option.name, "")))
             field.setPlaceholderText(option.placeholder)
             field.editingFinished.connect(
                 lambda name=option.name, w=field: self._on_option(name, w.text()))
             self._option_widgets[option.name] = field
+
             if option.kind == "file":
-                row = QWidget()
-                box = QHBoxLayout(row)
+                row_widget = QWidget()
+                box = QHBoxLayout(row_widget)
                 box.setContentsMargins(0, 0, 0, 0)
                 box.setSpacing(6)
                 box.addWidget(field, 1)
                 browse = QPushButton("고르기")
-                browse.clicked.connect(lambda _=False, name=option.name: self._pick_file(name))
+                browse.clicked.connect(
+                    lambda _=False, name=option.name: self._pick_file(name))
                 box.addWidget(browse)
-                self.options_form.addRow(option.label, row)
+                widget = row_widget
             else:
-                self.options_form.addRow(option.label, field)
+                widget = field
+
+            row = self._options_anchor + offset
+            self.form.insertRow(row, option.label, widget)
+            self._option_rows.append(row)
+
+        # 옵션이 끼어든 만큼 아래 행 번호가 밀린다
+        shift = len(self._option_rows)
+        self.action_row = self._base_action_row + shift
+        self.media_row = self._base_media_row + shift
 
     def _pick_file(self, option_name: str) -> None:
         path, _filter = QFileDialog.getOpenFileName(
@@ -457,8 +488,8 @@ class MainWindow(QMainWindow):
         is_media = kind == actions_module.MEDIA
         has_value = kind not in (actions_module.NONE, actions_module.MEDIA)
 
-        self.action_value.setVisible(has_value)
-        self.media_combo.setVisible(is_media)
+        self._set_row_visible(self.action_row, has_value)
+        self._set_row_visible(self.media_row, is_media)
         self.action_value.setPlaceholderText({
             actions_module.APP: "/Applications/Safari.app",
             actions_module.URL: "https://example.com",
@@ -516,9 +547,12 @@ class MainWindow(QMainWindow):
             except Exception:
                 tile.set_image(empty(index))
 
-        errors = state.errors
-        self.statusBar().showMessage(
-            f"수집 실패 {len(errors)}종: {', '.join(sorted(errors))}" if errors else "정상")
+        placed = sum(1 for slot in self.cfg.profile().slots if slot.key)
+        total = len(state.data) + len(state.errors)
+        parts = [f"칸 {placed}/{KEY_COUNT}", f"수집 {len(state.data)}/{total}종"]
+        if state.errors:
+            parts.append("실패: " + ", ".join(sorted(state.errors)))
+        self.statusBar().showMessage("   ".join(parts))
 
     def _on_status(self, text: str, connected: bool) -> None:
         self.status_label.setText(f"{'●' if connected else '○'}  {text}")
