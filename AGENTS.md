@@ -285,6 +285,16 @@ osacompile -o /tmp/x.scpt -e '<스크립트>'
 를 dlopen 한다. `electron-builder.yml` 의 `asarUnpack` 에 들어 있어야 패키징한
 앱에서 열린다.
 
+**앱은 한 번에 하나만 돈다.** 기기는 한 프로세스만 점유한다. Finder 로 두 번
+여는 것은 macOS 가 막아 주지만 launchd 는 실행 파일을 직접 띄우므로 그 규칙을
+비켜 간다. 로그인 항목이 띄워 둔 상태에서 사용자가 앱을 누르면 실제로 둘이
+뜨고, 나중 것이 기기를 못 열어 그냥 고장으로 보인다. `requestSingleInstanceLock`
+으로 막고, 늦게 뜬 쪽은 먼저 뜬 쪽에게 창을 보여 달라고 하고 물러난다.
+
+**번들 ID 를 바꾸면 옛 로그인 항목이 남는다.** 이름이 다르니 launchd 는 둘을
+서로 모르는 것으로 본다. 옛 항목은 지워진 경로를 가리키거나 앱을 두 번 띄운다.
+`agent.ts` 의 `LEGACY_LABELS` 에 옛 이름을 남겨 두고 등록/해제 때마다 걷어낸다.
+
 **HID 핸들을 쥔 프로세스를 SIGKILL 하지 않는다.** 기기가 잠겨 버려서 이후
 어떤 프로그램도 열지 못한다. 벤더 앱조차 `unable to open device, error =
 "Success"` 로 실패한다. 이 상태는 USB 를 물리적으로 뽑았다 꽂아야 풀린다.

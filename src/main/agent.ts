@@ -14,8 +14,30 @@ import { app } from 'electron'
 
 const run = promisify(execFile)
 
-export const LABEL = 'com.jkang.mirabox'
+export const LABEL = 'com.gangjoohyeong.mirabox'
+
+/**
+ * 예전에 쓰던 이름.
+ *
+ * 번들 ID 를 바꾸면 옛 이름으로 등록된 항목이 그대로 남는다. 그건 지워진
+ * 경로를 가리키거나, 최악은 앱을 두 번 띄운다. 등록하거나 해제할 때마다
+ * 같이 걷어낸다.
+ */
+const LEGACY_LABELS = ['com.jkang.mirabox']
+
 export const PLIST_PATH = join(homedir(), 'Library', 'LaunchAgents', `${LABEL}.plist`)
+
+const plistPathFor = (label: string) =>
+  join(homedir(), 'Library', 'LaunchAgents', `${label}.plist`)
+
+async function removeLegacy(): Promise<void> {
+  for (const label of LEGACY_LABELS) {
+    const path = plistPathFor(label)
+    if (!existsSync(path)) continue
+    await launchctl('bootout', domain(), path)
+    rmSync(path, { force: true })
+  }
+}
 export const LOG_DIR = join(homedir(), 'Library', 'Logs', 'mirabox')
 
 const domain = () => `gui/${userInfo().uid}`
@@ -35,7 +57,8 @@ export const BACKGROUND_FLAG = '--background'
 export const startedInBackground = () => process.argv.includes(BACKGROUND_FLAG)
 
 export const isPackaged = () => app.isPackaged
-export const isInstalled = () => existsSync(PLIST_PATH)
+export const isInstalled = () =>
+  existsSync(PLIST_PATH) || LEGACY_LABELS.some((label) => existsSync(plistPathFor(label)))
 export const isRunning = () => launchctl('print', `${domain()}/${LABEL}`)
 
 function plist(): string {
@@ -66,6 +89,7 @@ ${args}
 export async function install(): Promise<void> {
   // 개발 중에는 electron 실행 파일이 등록돼 로그인 때 빈 앱이 뜬다
   if (!app.isPackaged) throw new Error('패키징한 앱에서만 등록할 수 있다')
+  await removeLegacy()
   mkdirSync(LOG_DIR, { recursive: true })
   mkdirSync(dirname(PLIST_PATH), { recursive: true })
   writeFileSync(PLIST_PATH, plist(), 'utf8')
@@ -76,4 +100,5 @@ export async function install(): Promise<void> {
 export async function uninstall(): Promise<void> {
   await launchctl('bootout', domain(), PLIST_PATH)
   rmSync(PLIST_PATH, { force: true })
+  await removeLegacy()
 }

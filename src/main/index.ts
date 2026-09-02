@@ -274,7 +274,27 @@ function buildMenu(): void {
 
 // ---------- 수명 ----------
 
+/**
+ * 한 번에 하나만 돈다.
+ *
+ * 기기는 한 프로세스만 점유한다. 둘이 뜨면 하나는 기기를 못 열고, 사용자
+ * 눈에는 그냥 고장으로 보인다.
+ *
+ * Finder 로 여는 것은 macOS 가 알아서 막아 주지만 launchd 는 실행 파일을 직접
+ * 띄우므로 그 규칙을 비켜 간다. 로그인 항목이 띄워 둔 상태에서 사용자가 앱을
+ * 누르면 실제로 둘이 뜬다. 확인했다.
+ *
+ * 늦게 뜬 쪽은 물러나고, 먼저 뜬 쪽이 대신 창을 보여 준다.
+ */
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+}
+
+app.on('second-instance', () => showWindow())
+
 app.whenReady().then(async () => {
+  // 잠금을 못 얻었으면 여기까지 와도 아무것도 붙잡지 않는다
+  if (!app.hasSingleInstanceLock()) return
   const config: Config = configModule.load()
   configModule.save(config)
 
