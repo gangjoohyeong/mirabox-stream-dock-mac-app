@@ -1,10 +1,15 @@
 /**
- * 아래쪽이 몇 픽셀 가려지는지 잰다.
+ * 네 변이 각각 몇 픽셀 가려지는지 잰다.
  *
- * 보정 패턴에서 아래 변만 안 보인다는 것을 확인했다. 이제 양을 알아야 한다.
- * 키 열여덟 개를 눈금으로 쓴다. 키마다 흰 막대를 바닥에서 조금씩 띄워 그리고,
- * 큰 숫자로 몇 픽셀 띄웠는지 적는다. 막대가 온전히 보이는 첫 숫자가 곧
- * 가려지는 픽셀 수다.
+ * 키캡이 패널을 가리는데, 어느 변을 얼마나 가리는지는 실물을 봐야 안다.
+ * 키 열여덟 개를 눈금으로 쓴다. 키마다 네 변에서 같은 거리만큼 띄운 짧은
+ * 막대를 하나씩 그리고, 가운데 큰 숫자로 그 거리를 적는다. 어떤 색 막대가
+ * 온전히 보이는 첫 숫자가 그 변에서 가려지는 픽셀 수다.
+ *
+ *   위  빨강    아래 파랑    왼쪽 초록    오른쪽 노랑
+ *
+ * 막대는 변의 가운데 절반만 차지한다. 모서리에서 서로 겹치면 어느 색이
+ * 잘린 것인지 읽을 수 없다.
  *
  * 기기를 점유하므로 앱을 먼저 끈다.
  *
@@ -16,7 +21,7 @@ import { createCanvas, type Canvas } from '@napi-rs/canvas'
 import { KEY_COUNT, StreamDock, keySize } from '../src/main/device.js'
 import { encodeKey } from '../src/main/render.js'
 
-const BAR = 4
+const THICK = 3
 
 function ruler(index: number, offset: number): Canvas {
   const size = keySize(index)
@@ -26,20 +31,24 @@ function ruler(index: number, offset: number): Canvas {
   ctx.fillStyle = '#000000'
   ctx.fillRect(0, 0, size, size)
 
-  // 위쪽은 잘리지 않는 것이 확인됐다. 기준선으로 남겨 둔다
-  ctx.fillStyle = '#40ff60'
-  ctx.fillRect(0, 0, size, 2)
+  // 변의 가운데 절반에만 그린다
+  const span = Math.round(size * 0.5)
+  const start = Math.round((size - span) / 2)
 
-  // 바닥에서 offset 만큼 띄운 흰 막대. 이게 온전히 보이면 그만큼은 안 가려진다
-  ctx.fillStyle = '#ffffff'
-  ctx.fillRect(0, size - offset - BAR, size, BAR)
+  ctx.fillStyle = '#ff4040' // 위
+  ctx.fillRect(start, offset, span, THICK)
+  ctx.fillStyle = '#4090ff' // 아래
+  ctx.fillRect(start, size - offset - THICK, span, THICK)
+  ctx.fillStyle = '#40ff60' // 왼쪽
+  ctx.fillRect(offset, start, THICK, span)
+  ctx.fillStyle = '#ffd040' // 오른쪽
+  ctx.fillRect(size - offset - THICK, start, THICK, span)
 
-  // 몇 픽셀 띄웠는지. 가운데 크게
   ctx.fillStyle = '#ffffff'
-  ctx.font = `600 ${Math.round(size * 0.42)}px "Avenir Next Condensed"`
+  ctx.font = `600 ${Math.round(size * 0.4)}px "Avenir Next Condensed"`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(String(offset), size / 2, size * 0.45)
+  ctx.fillText(String(offset), size / 2, size / 2)
 
   return canvas
 }
@@ -54,11 +63,12 @@ for (let index = 0; index < KEY_COUNT; index++) {
 dock.refresh()
 dock.close()
 
-console.log(`눈금을 보냈다. 키마다 숫자와 흰 막대가 하나씩 있다.
+console.log(`눈금을 보냈다. 키마다 숫자 하나와 색 막대 네 개가 있다.
 
-  왼쪽 위부터 행 우선으로 0, 1, 2, ... 17 이다.
-  숫자는 흰 막대를 바닥에서 몇 픽셀 띄웠는지를 뜻한다.
-  초록 줄은 위쪽 기준선이다. 모든 키에서 보여야 한다.
+  왼쪽 위부터 행 우선으로 0, 1, 2, ... 17
+  숫자는 네 막대를 각 변에서 몇 픽셀 띄웠는지를 뜻한다.
 
-알려 달라. 흰 막대가 **온전히** 보이는 첫 숫자는 몇인가.
-0 번 키에서도 막대가 다 보이면 아래는 안 가려지는 것이다.`)
+  위 빨강   아래 파랑   왼쪽 초록   오른쪽 노랑
+
+색마다 알려 달라. 그 색 막대가 **온전히** 보이는 첫 숫자는 몇인가.
+0 번 키에서도 다 보이면 그 변은 안 가려지는 것이다.`)
