@@ -194,6 +194,13 @@ npx tsx tools/board.ts /tmp/board.png   # 지금 설정을 기기 모양으로 (
 npx tsx tools/identify.ts               # 기기 정체만 읽기 (열지 않는다)
 ```
 
+설치본이 돌고 있으면 개발 실행이 곧바로 종료된다. 단일 실행 잠금을 설치본이
+쥐고 있기 때문이다. 개발 중에는 먼저 내린다.
+
+```bash
+osascript -e 'tell application "Stream Dock" to quit'
+```
+
 화면 기록 권한이 없어도 창을 확인할 수 있다. 앱이 스스로 찍는다.
 
 ```bash
@@ -201,7 +208,11 @@ SHOT_PATH=/tmp/app.png SHOT_DELAY=12000 npx electron .
 SHOT_PATH=/tmp/dark.png SHOT_THEME=dark npx electron .
 SHOT_PATH=/tmp/p.png SHOT_PALETTE=1 npx electron .
 SHOT_PATH=/tmp/x.png SHOT_SCRIPT='window.api.setSlot(0,{key:"clock"})' npx electron .
+SHOT_MENU=1 SHOT_PATH=/tmp/x.png npx electron .   # 메뉴 구조와 앱 이름, 로캘
 ```
+
+메뉴는 화면에 안 나와서 등록됐는지 눈으로 볼 수가 없다. `SHOT_MENU` 가
+전체 구조를 단축키까지 찍어 준다.
 
 `SHOT_SCRIPT` 는 찍기 직전에 렌더러에서 돌린다. 눌러야 열리는 화면이나
 설정을 바꾼 뒤 모습을 확인할 때 쓴다.
@@ -284,6 +295,19 @@ osacompile -o /tmp/x.scpt -e '<스크립트>'
 **네이티브 모듈은 asar 밖에 둔다.** `node-hid` 와 `@napi-rs/canvas` 는 `.node`
 를 dlopen 한다. `electron-builder.yml` 의 `asarUnpack` 에 들어 있어야 패키징한
 앱에서 열린다.
+
+**편집 메뉴가 없으면 입력창이 반쯤 죽는다.** macOS 에서 Cmd+A, Cmd+C, Cmd+V,
+Cmd+Z 는 앱 메뉴의 편집 항목이 등록해야 동작한다. 커스텀 메뉴를 만들면서
+`role: 'editMenu'` 를 빠뜨리면 모든 입력창에서 복사도 붙여넣기도 안 된다.
+화면에는 아무 표시가 없어서 알아채기 어렵다.
+
+**메뉴 라벨은 직접 적는다.** 로캘이 `ko` 인데도 Electron 이 role 의 기본
+라벨을 영어로 내준다. 그대로 두면 화면은 한글인데 메뉴만 영어가 된다. 라벨만
+바꾸고 role 은 지켜서 표준 단축키와 동작을 잃지 않는다.
+
+**앱 메뉴에 찍히는 이름은 package.json 의 productName 이다.** 없으면 `name`
+으로 떨어져 `stream-dock 종료` 처럼 나온다. electron-builder.yml 의
+productName 은 번들 이름이라 이것과 별개다. 둘 다 적어야 한다.
 
 **앱은 한 번에 하나만 돈다.** 기기는 한 프로세스만 점유한다. Finder 로 두 번
 여는 것은 macOS 가 막아 주지만 launchd 는 실행 파일을 직접 띄우므로 그 규칙을

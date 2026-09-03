@@ -231,43 +231,76 @@ function registerIpc(): void {
 
 // ---------- 메뉴 ----------
 
+/**
+ * 네이티브 메뉴.
+ *
+ * HTML 로 흉내내지 않는다. 특히 편집 메뉴가 없으면 macOS 에서는 입력창의
+ * Cmd+A, Cmd+C, Cmd+V 가 통째로 죽는다. 그 단축키는 앱 메뉴가 등록해야
+ * 동작하기 때문이다.
+ *
+ * 라벨은 직접 적는다. 로캘이 ko 인데도 Electron 이 role 기본 라벨을 영어로
+ * 내주어서, 그대로 두면 화면은 한글인데 메뉴만 영어가 된다. 라벨만 바꾸고
+ * role 은 그대로 두어 표준 단축키와 동작을 지킨다.
+ */
 function buildMenu(): void {
-  // HTML 로 흉내내지 않는다. 네이티브 메뉴를 쓴다.
+  const name = app.getName()
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
-      { role: 'appMenu' },
+      {
+        label: name,
+        submenu: [
+          { role: 'about', label: `${name} 정보` },
+          { type: 'separator' },
+          { role: 'services', label: '서비스' },
+          { type: 'separator' },
+          { role: 'hide', label: `${name} 가리기` },
+          { role: 'hideOthers', label: '기타 가리기' },
+          { role: 'unhide', label: '모두 보기' },
+          { type: 'separator' },
+          { role: 'quit', label: `${name} 종료` },
+        ],
+      },
+      {
+        label: '편집',
+        submenu: [
+          { role: 'undo', label: '실행 취소' },
+          { role: 'redo', label: '실행 복귀' },
+          { type: 'separator' },
+          { role: 'cut', label: '오려두기' },
+          { role: 'copy', label: '복사하기' },
+          { role: 'paste', label: '붙여놓기' },
+          { role: 'pasteAndMatchStyle', label: '스타일에 맞춰 붙여놓기' },
+          { role: 'delete', label: '삭제' },
+          { role: 'selectAll', label: '전체 선택' },
+        ],
+      },
       {
         label: '프로필',
         submenu: [
-          {
-            label: '새 프로필',
-            accelerator: 'CmdOrCtrl+N',
-            click: () => send('menu:newProfile'),
-          },
-          {
-            label: '이름 바꾸기',
-            click: () => send('menu:renameProfile'),
-          },
-          {
-            label: '프로필 삭제',
-            click: () => send('menu:removeProfile'),
-          },
+          { label: '새 프로필', accelerator: 'CmdOrCtrl+N', click: () => send('menu:newProfile') },
+          { label: '이름 바꾸기', click: () => send('menu:renameProfile') },
+          { label: '프로필 삭제', click: () => send('menu:removeProfile') },
         ],
       },
       {
         label: '보기',
         submenu: [
-          {
-            label: '명령 팔레트',
-            accelerator: 'CmdOrCtrl+K',
-            click: () => send('menu:palette'),
-          },
+          { label: '명령 팔레트', accelerator: 'CmdOrCtrl+K', click: () => send('menu:palette') },
           { type: 'separator' },
-          { role: 'reload' },
-          { role: 'toggleDevTools' },
+          { role: 'reload', label: '새로 고침' },
+          { role: 'toggleDevTools', label: '개발자 도구' },
         ],
       },
-      { role: 'windowMenu' },
+      {
+        label: '윈도우',
+        submenu: [
+          { role: 'minimize', label: '최소화' },
+          { role: 'zoom', label: '확대/축소' },
+          { type: 'separator' },
+          { role: 'front', label: '모두 앞으로 가져오기' },
+          { role: 'close', label: '닫기' },
+        ],
+      },
     ]),
   )
 }
@@ -318,6 +351,20 @@ app.whenReady().then(async () => {
   if (!agent.startedInBackground()) window = createWindow()
   daemon.start()
   push()
+
+  // 개발용. 메뉴는 화면에 안 나와서 등록됐는지 눈으로 볼 수가 없다.
+  if (process.env.SHOT_MENU) {
+    const dump = (items: Electron.MenuItem[], depth = 0): void => {
+      for (const item of items) {
+        const role = item.role ? ` role=${item.role}` : ''
+        const key = item.accelerator ? ` [${item.accelerator}]` : ''
+        console.log(`${'  '.repeat(depth)}${item.label || item.type}${role}${key}`)
+        if (item.submenu) dump(item.submenu.items, depth + 1)
+      }
+    }
+    console.log(`이름=${app.getName()} 로캘=${app.getLocale()} 시스템=${app.getSystemLocale()}`)
+    dump(Menu.getApplicationMenu()?.items ?? [])
+  }
 
   // 개발용. 화면 기록 권한 없이도 창을 확인할 수 있게 스스로 찍는다.
   if (process.env.SHOT_PATH) {

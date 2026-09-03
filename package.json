@@ -1,5 +1,6 @@
 {
   "name": "stream-dock",
+  "productName": "Stream Dock",
   "version": "0.1.0",
   "description": "Mirabox Stream Dock 293S를 macOS에서 직접 구동하는 앱",
   "main": "out/main/index.js",
