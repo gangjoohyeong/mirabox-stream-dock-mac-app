@@ -8,7 +8,18 @@
 import { loadImage, type Image } from '@napi-rs/canvas'
 import { statSync } from 'node:fs'
 import { keySize } from '../device.js'
-import { ACCENT, DANGER, INK, OK, TERTIARY, WARN, blank, card, empty } from '../render.js'
+import {
+  ACCENT,
+  DANGER,
+  INK,
+  OK,
+  TERTIARY,
+  WARN,
+  blank,
+  card,
+  empty,
+  visibleHeight,
+} from '../render.js'
 import { key } from '../registry.js'
 
 const CUSTOM = 'custom' as const
@@ -82,28 +93,30 @@ key({
     if (!image) return blank(index, 'IMG', '없음', CUSTOM)
 
     const size = keySize(index)
+    // 키캡이 아래를 가린다. 보이는 높이 안에 넣어야 잘리지 않는다
+    const shown = visibleHeight(size)
     const canvas = empty(index)
     const ctx = canvas.getContext('2d')
 
-    // cover 는 키를 꽉 채우도록 잘라 넣고, contain 은 전체가 보이게 줄인다
+    // cover 는 보이는 영역을 꽉 채우도록 잘라 넣고, contain 은 전체가 보이게 줄인다
     const pick = options.fit === 'contain' ? Math.min : Math.max
-    const scale = pick(size / image.width, size / image.height)
+    const scale = pick(size / image.width, shown / image.height)
     const w = image.width * scale
     const h = image.height * scale
-    ctx.drawImage(image, (size - w) / 2, (size - h) / 2, w, h)
+    ctx.drawImage(image, (size - w) / 2, (shown - h) / 2, w, h)
 
     const caption = (options.caption ?? '').trim().slice(0, 8)
     if (caption) {
       // 그림 위 글자는 대비가 보장되지 않는다. 검은 띠를 깔고 그 위에 쓴다
-      const band = Math.round(size * 0.28)
+      const band = Math.round(shown * 0.3)
       ctx.fillStyle = '#000000'
-      ctx.fillRect(0, size - band, size, band)
+      ctx.fillRect(0, shown - band, size, band)
       const ascii = /^[\x00-\x7F]*$/.test(caption)
       ctx.fillStyle = INK
       ctx.font = `600 ${Math.round(band * 0.62)}px "${ascii ? 'Avenir Next Condensed' : 'Apple SD Gothic Neo'}"`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(caption, size / 2, size - band / 2)
+      ctx.fillText(caption, size / 2, shown - band / 2)
     }
     return canvas
   },

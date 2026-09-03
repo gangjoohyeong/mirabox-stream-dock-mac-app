@@ -75,12 +75,25 @@ export const FAMILIES: Record<Family, FamilyStyle> = {
   custom: { title: '직접 넣기', color: TERTIARY, mark: 'none' },
 }
 
-// 95px 키 기준. 126 기준 설계를 0.754 배 한 값이다.
+/**
+ * 키캡이 아래쪽을 가린다.
+ *
+ * 패널에 보낸 그림의 아래 끝은 눈에 보이지 않는다. `tools/ruler.ts` 로 키
+ * 열여덟 개에 눈금을 띄워 실기기에서 쟀고, 95px 기준으로 **아래 10px** 이
+ * 가려진다. 키마다 차이는 거의 없었다.
+ *
+ * 이걸 모르고 그리면 하단 띠가 절반쯤 잘리고, 그림 키는 아래가 잘려 나가
+ * 무게중심이 아래로 내려가 보인다. 세로 배치는 전부 보이는 높이 안에 넣는다.
+ * 가로는 잘리지 않으므로 그대로 둔다.
+ */
+const HIDDEN_BOTTOM = 10
+
+/** 95px 키 기준. 세로 값은 보이는 높이(85) 안에서 잡았다. */
 const PAD = 8
-const TOP_BASELINE = 26
-const VALUE_BASELINE = 72
-const BAND_Y = 80
-const BAND_H = 9
+const TOP_BASELINE = 24
+const VALUE_BASELINE = 64
+const BAND_Y = 71
+const BAND_H = 8
 
 const TOP_SIZE = 23
 const VALUE_SIZE = 35
@@ -228,6 +241,14 @@ function drawMark(
 }
 
 /** 카드 한 장을 그려 PNG 가 아닌 캔버스로 돌려준다. 인코딩은 encodeKey 가 한다. */
+/**
+ * 실제로 눈에 보이는 높이. 세로로 무엇을 놓든 이 안에 들어가야 한다.
+ *
+ * 그림을 키에 꽉 채우는 키들이 이 값으로 자기 배치를 잡는다.
+ */
+export const visibleHeight = (size: number): number =>
+  size - Math.round(HIDDEN_BOTTOM * (size / KEY_SIZE))
+
 export function card(key: number, spec: Card): Canvas {
   const size = keySize(key)
   const scale = size / KEY_SIZE // 사이드 키는 조금 작다

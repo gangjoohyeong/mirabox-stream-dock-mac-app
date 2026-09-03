@@ -13,7 +13,7 @@ import { loadImage, type Image } from '@napi-rs/canvas'
 import { iconFile } from '../appicon.js'
 import { appIndex } from '../appwatch.js'
 import { keySize } from '../device.js'
-import { INK, blank, empty } from '../render.js'
+import { INK, blank, empty, visibleHeight } from '../render.js'
 import { key } from '../registry.js'
 
 const F = 'custom' as const
@@ -69,11 +69,12 @@ key({
     const canvas = empty(index)
     const ctx = canvas.getContext('2d')
 
-    // macOS 아이콘은 자체 여백을 갖고 있다. 키를 꽉 채워 그려야 Dock 과
-    // 비슷한 크기로 보인다.
+    // 키캡이 아래를 가리므로 보이는 높이 안에 넣는다. 키를 꽉 채워 그리면
+    // 아이콘 아래가 잘려 무게중심이 내려가 보인다.
+    const shown = visibleHeight(size)
     const name = appIndex.list().find((entry) => entry.id === id)?.name ?? ''
-    const band = options.caption === 'name' && name ? Math.round(size * 0.26) : 0
-    const box = size - band
+    const band = options.caption === 'name' && name ? Math.round(shown * 0.28) : 0
+    const box = shown - band
     ctx.drawImage(image, (size - box) / 2, 0, box, box)
 
     if (band) {
@@ -90,7 +91,7 @@ key({
         if (ctx.measureText(text).width <= size - 8) break
         fontSize -= 1
       }
-      ctx.fillText(text, size / 2, size - band / 2)
+      ctx.fillText(text, size / 2, shown - band / 2)
     }
     return canvas
   },
