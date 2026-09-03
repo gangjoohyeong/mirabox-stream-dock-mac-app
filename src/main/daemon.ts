@@ -14,7 +14,7 @@ import { toCommand } from './actions.js'
 import { AppWatcher, type FrontApp } from './appwatch.js'
 import { keysInUse, profileForApp, profileOf, save } from './config.js'
 import { DeviceError, KEY_COUNT, StreamDock } from './device.js'
-import { warmImages } from './integrations/index.js'
+import { warmIcons, warmImages } from './integrations/index.js'
 import { KEYS, SOURCES, emptyState, sourcesFor, type State } from './registry.js'
 import { blank, empty, encodeKey } from './render.js'
 import { spawnDetached } from './shell.js'
@@ -243,7 +243,9 @@ export class Daemon extends EventEmitter<DaemonEvents> {
   private async paintOnce(force: boolean): Promise<void> {
     if (!this.dock?.isOpen) return
     const profile = profileOf(this.config)
+    // 그리기는 동기다. 파일에서 읽어야 하는 것은 여기서 미리 준비한다
     await warmImages(profile.slots.map((s) => s.options.path ?? ''))
+    await warmIcons(profile.slots.map((s) => s.options.id ?? ''))
 
     const state = this.state
     // 한 번에 많이 밀어 넣으면 기기가 쓰기를 거부한다. 몇 번 쉬고 다시 해 본다.

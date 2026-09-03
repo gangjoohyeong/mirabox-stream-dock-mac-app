@@ -64,6 +64,8 @@ function sampleState(): State {
 const OPTIONS: Record<string, Record<string, string>> = {
   text: { title: '회의', value: '시작', color: 'blue', band: 'blue' },
   clock: { hour: '12' },
+  // 아이콘은 앱 목록을 훑어야 나온다. 기기 없이 도는 도구라 여기서는 빈 칸이다
+  app: {},
 }
 
 /**

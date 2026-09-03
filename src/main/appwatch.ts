@@ -64,16 +64,16 @@ for d in ${APP_DIRS.map((d) => `'${d}'`).join(' ')}; do
     [ -n "$id" ] || continue
     name=$(mdls -name kMDItemDisplayName -raw "$p" 2>/dev/null)
     case "$name" in ""|"(null)") name=$base ;; esac
-    printf '%s\t%s\n' "$id" "\${name%.app}"
+    printf '%s\t%s\t%s\n' "$id" "\${name%.app}" "$p"
   done
 done`
   const out = await sh(script, 20000)
   const apps = new Map<string, AppInfo>()
   for (const line of out.split('\n')) {
-    const [id, name] = line.split('\t')
-    if (!id || !name) continue
+    const [id, name, path] = line.split('\t')
+    if (!id || !name || !path) continue
     // 같은 앱이 여러 곳에 있으면 먼저 찾은 것을 쓴다
-    if (!apps.has(id)) apps.set(id, { id, name, running: false })
+    if (!apps.has(id)) apps.set(id, { id, name, running: false, path })
   }
   return [...apps.values()]
 }

@@ -6,6 +6,7 @@
  */
 
 import './basic.js'
+import './apps.js'
 import './system.js'
 import './weather.js'
 import './claude.js'
@@ -15,3 +16,4 @@ import './gitlab.js'
 import './buildhost.js'
 
 export { warmImages } from './basic.js'
+export { warmIcons } from './apps.js'

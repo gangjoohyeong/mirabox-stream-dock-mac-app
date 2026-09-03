@@ -37,7 +37,7 @@ export interface Config {
 export interface KeyOption {
   name: string
   label: string
-  kind: 'text' | 'file' | 'choice'
+  kind: 'text' | 'file' | 'choice' | 'app'
   placeholder: string
   /** kind 가 choice 일 때 고를 수 있는 값 */
   choices?: MediaChoice[]
@@ -90,6 +90,8 @@ export interface AppInfo {
   id: string
   name: string
   running: boolean
+  /** 번들 경로. 아이콘을 뽑을 때 쓴다. */
+  path: string
 }
 
 /** 로그인 자동 시작 결과. 실패하면 이유를 화면에 띄운다. */

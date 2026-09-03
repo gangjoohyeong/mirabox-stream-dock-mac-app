@@ -327,7 +327,16 @@ export function App() {
           {keyInfo?.options.map((option) => (
             <div className="field" key={option.name}>
               <label>{option.label}</label>
-              {option.kind === 'choice' ? (
+              {option.kind === 'app' ? (
+                <AppPicker
+                  ariaLabel={option.label}
+                  value={slot?.options[option.name] ?? ''}
+                  apps={state.apps}
+                  onChange={(id) =>
+                    void window.api.setSlot(selected, { options: { [option.name]: id } })
+                  }
+                />
+              ) : option.kind === 'choice' ? (
                 <Select
                   ariaLabel={option.label}
                   value={slot?.options[option.name] ?? option.choices?.[0]?.value ?? ''}

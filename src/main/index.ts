@@ -163,6 +163,15 @@ function registerIpc(): void {
     }
     if (patch.options) slot.options = { ...slot.options, ...patch.options }
     if (patch.action) slot.action = patch.action
+
+    // 앱 키는 고르는 순간 실행 동작까지 걸어 준다. 아이콘만 띄우고 눌러도
+    // 아무 일이 없으면 고른 사람의 기대와 어긋난다. 다른 동작을 이미
+    // 걸어 두었으면 건드리지 않는다.
+    const picked = patch.options?.id
+    if (slot.key === 'app' && picked && ['none', 'app'].includes(slot.action.kind)) {
+      slot.action = { kind: 'app', value: picked }
+    }
+
     persist({ restartSources: 'key' in patch })
   })
 
@@ -351,6 +360,14 @@ app.whenReady().then(async () => {
   if (!agent.startedInBackground()) window = createWindow()
   daemon.start()
   push()
+
+  // 앱 목록은 백 개쯤 되는 번들을 읽어야 해서 느리다. 창부터 띄우고 뒤에서
+  // 채운다. 창 없이 뜨는 자동 시작에서도 반드시 돌아야 한다. 앱 키는 이
+  // 목록으로 아이콘을 찾으므로, 다 채우고 나서 한 번 더 그린다.
+  void appIndex.refresh().then(() => {
+    daemon?.requestPaint()
+    push()
+  })
 
   // 개발용. 메뉴는 화면에 안 나와서 등록됐는지 눈으로 볼 수가 없다.
   if (process.env.SHOT_MENU) {

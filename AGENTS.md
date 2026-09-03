@@ -70,7 +70,8 @@ src/
     daemon.ts           루프. 필요한 소스만 켜고 그려서 보낸다
     actions.ts          키를 눌렀을 때 할 일
     shell.ts            외부 명령 실행. PATH 를 직접 세운다
-    appwatch.ts         앞선 앱 감시 (lsappinfo)
+    appwatch.ts         앞선 앱 감시와 설치된 앱 목록 (lsappinfo, mdls)
+    appicon.ts          앱 아이콘을 PNG 로 뽑아 캐시한다 (NSWorkspace)
     agent.ts            로그인 자동 시작 (launchd)
     tray.ts             메뉴 막대 상주. 창을 닫아도 데몬은 돈다
     index.ts            창, IPC, 네이티브 메뉴, 수명
@@ -295,6 +296,21 @@ osacompile -o /tmp/x.scpt -e '<스크립트>'
 **네이티브 모듈은 asar 밖에 둔다.** `node-hid` 와 `@napi-rs/canvas` 는 `.node`
 를 dlopen 한다. `electron-builder.yml` 의 `asarUnpack` 에 들어 있어야 패키징한
 앱에서 열린다.
+
+**앱 아이콘은 시스템에 물어본다.** 번들 안의 `.icns` 를 직접 읽는 방법은 요즘
+앱에 잘 안 먹는다. 아이콘이 `Assets.car` 에만 있고 Info.plist 에 파일 이름이
+없는 앱이 많다. `NSWorkspace.iconForFile` 은 무엇이 들었든 그려 준다. JXA 로
+부르고 256 을 요청하면 레티나 배수가 붙어 512px 로 나온다.
+
+Electron 의 `app.getFileIcon` 은 쓰지 않는다. 32px 밖에 안 주고
+`size: 'large'` 는 이 버전에서 SIGTRAP 으로 죽는다. 확인했다.
+
+**아이콘을 뽑기 전에 심볼릭 링크를 푼다.** `/Applications/Safari.app` 은
+`/System/Cryptexes/...` 로 가는 링크다. 그대로 물어보면 왼쪽 아래에 별칭
+화살표가 박힌 아이콘이 나온다.
+
+**JXA 에 경로를 끼워 넣지 않는다.** 따옴표가 들어간 앱 이름 하나에 깨진다.
+환경변수로 넘기고 `NSProcessInfo` 로 읽는다.
 
 **편집 메뉴가 없으면 입력창이 반쯤 죽는다.** macOS 에서 Cmd+A, Cmd+C, Cmd+V,
 Cmd+Z 는 앱 메뉴의 편집 항목이 등록해야 동작한다. 커스텀 메뉴를 만들면서

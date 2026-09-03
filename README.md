@@ -106,6 +106,10 @@ osascript -e 'tell application "StreamDock" to quit'
 앱 실행, 링크 열기, 셸 명령, 미디어 조작(재생/정지, 이전/다음, 음량) 중에서
 고른다. 앱은 설치된 목록에서 검색해 고른다.
 
+앱 하나를 통째로 올리려면 `APP` 키가 더 빠르다. 고르는 순간 그 앱의 아이콘이
+키를 채우고 누를 때 동작까지 함께 걸린다. 아이콘은 시스템에서 뽑아 쓰므로
+그림 파일을 따로 찾을 필요가 없다.
+
 ![앱 검색](docs/picker.png)
 
 프로필에 앱을 묶어 두면 그 앱이 앞으로 나올 때 보드가 자동으로 바뀐다. 앱은
@@ -134,7 +138,7 @@ osascript -e 'tell application "StreamDock" to quit'
 | 날씨 | 동그라미 | `WEATHER` `RAIN` `FEELS` |
 | 내 맥 | 네모 | `CPU` `MEM` `DISK` `BATT` `UP` `VOL` |
 | 기본 | 없음 | `CLOCK` `DATE` `BLANK` |
-| 직접 넣기 | 없음 | `IMG` `TXT` |
+| 직접 넣기 | 없음 | `APP` `IMG` `TXT` |
 
 | 키 | 내용 |
 | --- | --- |
@@ -149,6 +153,7 @@ osascript -e 'tell application "StreamDock" to quit'
 | CPU, MEM, DISK | 이 맥의 부하, 메모리, 디스크 |
 | BATT, UP, VOL | 배터리, 켜 둔 시간, 출력 음량 |
 | CLOCK, DATE | 현재 시각(12/24시간), 오늘 날짜와 요일 |
+| APP | 앱을 고르면 그 아이콘이 채워지고, 누르면 그 앱이 열린다 |
 | IMG | 그림 파일. 채우는 방식과 아래 글자를 고른다 |
 | TXT | 원하는 글자. 색과 아래 띠를 고른다 |
 | BLANK | 빈 칸 |
